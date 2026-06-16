@@ -1,0 +1,74 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+:root {
+  --bg: #f9fafb;
+  --fg: #111827;
+  --surface: #ffffff;
+  --border: #e5e7eb;
+  --muted: #6b7280;
+}
+
+.dark {
+  --bg: #0f1117;
+  --fg: #f3f4f6;
+  --surface: #1a1d27;
+  --border: #2d3147;
+  --muted: #9ca3af;
+}
+
+html {
+  color-scheme: light;
+}
+html.dark {
+  color-scheme: dark;
+}
+
+body {
+  background-color: var(--bg);
+  color: var(--fg);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  transition: background-color 0.2s, color 0.2s;
+}
+
+/* ProseMirror editor styles */
+.ProseMirror {
+  outline: none;
+  min-height: 140px;
+}
+.ProseMirror p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  color: #9ca3af;
+  pointer-events: none;
+  float: left;
+  height: 0;
+}
+.ProseMirror ul { list-style-type: disc; padding-left: 1.5rem; }
+.ProseMirror ol { list-style-type: decimal; padding-left: 1.5rem; }
+.ProseMirror blockquote {
+  border-left: 4px solid #d1d5db;
+  padding-left: 0.75rem;
+  color: #6b7280;
+}
+.ProseMirror code {
+  background: #f3f4f6;
+  padding: 0.1em 0.3em;
+  border-radius: 0.25rem;
+  font-size: 0.875em;
+}
+.ProseMirror h1 { font-size: 1.5rem; font-weight: 700; margin: 0.5em 0; }
+.ProseMirror h2 { font-size: 1.25rem; font-weight: 700; margin: 0.4em 0; }
+.ProseMirror h3 { font-size: 1.1rem; font-weight: 600; margin: 0.3em 0; }
+.ProseMirror img {
+  max-width: 100%;
+  border-radius: 0.5rem;
+  margin: 0.5rem 0;
+  cursor: pointer;
+}
+.ProseMirror img.ProseMirror-selectednode {
+  outline: 3px solid #3b82f6;
+}
+
+.dark .ProseMirror blockquote { border-left-color: #4b5563; color: #9ca3af; }
+.dark .ProseMirror code { background: #374151; color: #f3f4f6; }

@@ -1,0 +1,699 @@
+// prisma/schema.prisma
+// 이 파일이 데이터베이스 테이블 구조를 정의합니다.
+// 수정 후에는 반드시 npx prisma db push 를 실행해야 DB에 반영됩니다.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// ============================
+// 사용자 테이블
+// ============================
+model User {
+  id        Int      @id @default(autoincrement())
+  email     String   @unique @db.VarChar(255)
+  password  String   @db.VarChar(255)
+  name      String   @db.VarChar(100)
+  role      Role     @default(user)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  categories         Category[]
+  tasks              Task[]
+  goals              Goal[]
+  projects           Project[]
+  routines           Routine[]
+  routineLogs        RoutineLog[]
+  schedules          Schedule[]
+  experiments        Experiment[]
+  experimentLogs     ExperimentLog[]
+  tests              Test[]
+  resourceCategories ResourceCategory[]
+  resourceLinks      ResourceLink[]
+  apiKeys            ApiKey[]
+  timeEntries        TimeEntry[]
+  launcherGroups     LauncherGroup[]
+  ideaCategories     IdeaCategory[]
+  ideas              Idea[]
+
+  @@map("users")
+}
+
+enum Role {
+  user
+  admin
+}
+
+// ============================
+// 카테고리 테이블
+// ============================
+model Category {
+  id        Int          @id @default(autoincrement())
+  userId    Int          @map("user_id")
+  name      String       @db.VarChar(100)
+  type      CategoryType @default(all)
+  color     String       @default("#3B82F6") @db.VarChar(7)
+  createdAt DateTime     @default(now()) @map("created_at")
+
+  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tasks       Task[]
+  schedules   Schedule[]
+  experiments Experiment[]
+  timeEntries TimeEntry[]
+
+  @@map("categories")
+}
+
+enum CategoryType {
+  task
+  schedule
+  experiment
+  all
+}
+
+// ============================
+// 할일 테이블
+// ============================
+model Task {
+  id          Int        @id @default(autoincrement())
+  userId      Int        @map("user_id")
+  categoryId  Int?       @map("category_id")
+  title       String     @db.VarChar(255)
+  description String?    @db.Text
+  color       String     @default("#FFFFFF") @db.VarChar(7)
+  taskDate    DateTime   @map("task_date") @db.Date
+  dueTime     String?    @map("due_time") @db.VarChar(5)  // "HH:MM" 형식
+  importance  Importance @default(medium)
+  urgency     Urgency    @default(medium)
+  status      TaskStatus @default(pending)
+  sortOrder   Int        @default(0) @map("sort_order")
+  createdAt   DateTime   @default(now()) @map("created_at")
+  updatedAt   DateTime   @updatedAt @map("updated_at")
+
+  estimatedMinutes Int?    @map("estimated_minutes")
+  checklist        Json?
+  projectName      String? @map("project_name") @db.VarChar(100)
+  goalName         String? @map("goal_name") @db.VarChar(100)
+  projectId        Int?    @map("project_id")
+  goalId           Int?    @map("goal_id")
+
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  category    Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  project     Project?  @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  goal        Goal?     @relation(fields: [goalId], references: [id], onDelete: SetNull)
+  timeEntries TimeEntry[]
+
+  @@map("tasks")
+}
+
+enum Importance {
+  high
+  medium
+  low
+}
+
+enum Urgency {
+  high
+  medium
+  low
+}
+
+enum TaskStatus {
+  pending
+  in_progress
+  done
+  on_hold
+  cancelled
+}
+
+// ============================
+// 목표 테이블
+// ============================
+model Goal {
+  id          Int        @id @default(autoincrement())
+  userId      Int        @map("user_id")
+  title       String     @db.VarChar(255)
+  description String?    @db.Text
+  type        GoalType   @default(monthly)
+  status      GoalStatus @default(active)
+  startDate   DateTime   @map("start_date") @db.Date
+  endDate     DateTime?  @map("end_date") @db.Date
+  color       String     @default("#3B82F6") @db.VarChar(7)
+  progress    Int        @default(0)
+  createdAt   DateTime   @default(now()) @map("created_at")
+  updatedAt   DateTime   @updatedAt @map("updated_at")
+
+  user  User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tasks Task[]
+
+  @@map("goals")
+}
+
+enum GoalType {
+  yearly
+  monthly
+  weekly
+  custom
+}
+
+enum GoalStatus {
+  active
+  completed
+  paused
+  abandoned
+}
+
+// ============================
+// 프로젝트 테이블
+// ============================
+model Project {
+  id          Int           @id @default(autoincrement())
+  userId      Int           @map("user_id")
+  title       String        @db.VarChar(255)
+  description String?       @db.Text
+  type        ProjectType   @default(personal)
+  status      ProjectStatus @default(planning)
+  startDate   DateTime?     @map("start_date") @db.Date
+  endDate     DateTime?     @map("end_date") @db.Date
+  color       String        @default("#7C3AED") @db.VarChar(7)
+  createdAt   DateTime      @default(now()) @map("created_at")
+  updatedAt   DateTime      @updatedAt @map("updated_at")
+
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tasks       Task[]
+  timeEntries TimeEntry[]
+  schedules   Schedule[]
+  ideas       Idea[]
+
+  @@map("projects")
+}
+
+enum ProjectType {
+  work
+  personal
+  study
+  other
+}
+
+enum ProjectStatus {
+  planning
+  active
+  completed
+  paused
+}
+
+// ============================
+// 루틴 테이블
+// ============================
+model Routine {
+  id          Int              @id @default(autoincrement())
+  userId      Int              @map("user_id")
+  title       String           @db.VarChar(255)
+  description String?          @db.Text
+  frequency   RoutineFrequency @default(daily)
+  daysOfWeek  Json?            @map("days_of_week") // [0,1,2,3,4,5,6] 일~토
+  timeOfDay   String?          @map("time_of_day") @db.VarChar(5) // "HH:MM"
+  color       String           @default("#6366F1") @db.VarChar(7)
+  status      RoutineStatus    @default(active)
+  startDate   DateTime?        @map("start_date") @db.Date
+  endDate     DateTime?        @map("end_date") @db.Date
+  createdAt   DateTime         @default(now()) @map("created_at")
+  updatedAt   DateTime         @updatedAt @map("updated_at")
+
+  user User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  logs RoutineLog[]
+
+  @@map("routines")
+}
+
+enum RoutineFrequency {
+  daily
+  weekly
+  monthly
+  custom
+}
+
+enum RoutineStatus {
+  active
+  paused
+  archived
+}
+
+model RoutineLog {
+  id        Int      @id @default(autoincrement())
+  routineId Int      @map("routine_id")
+  userId    Int      @map("user_id")
+  logDate   DateTime @map("log_date") @db.Date
+  done      Boolean  @default(true)
+  note      String?  @db.Text
+  createdAt DateTime @default(now()) @map("created_at")
+
+  routine Routine @relation(fields: [routineId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([routineId, logDate])
+  @@map("routine_logs")
+}
+
+// ============================
+// 스케줄(일정) 테이블
+// ============================
+model Schedule {
+  id           Int       @id @default(autoincrement())
+  userId       Int       @map("user_id")
+  categoryId   Int?      @map("category_id")
+  projectId    Int?      @map("project_id")
+  title        String    @db.VarChar(255)
+  description  String?   @db.Text
+  scheduleDate DateTime  @map("schedule_date") @db.Date
+  endDate      DateTime? @map("end_date") @db.Date
+  startTime    String?   @map("start_time") @db.VarChar(5)  // "HH:MM" 형식
+  endTime      String?   @map("end_time") @db.VarChar(5)    // "HH:MM" 형식
+  isAllDay     Boolean   @default(false) @map("is_all_day")
+  eventType    String    @default("일반") @map("event_type") @db.VarChar(50)
+  status       String    @default("예정") @db.VarChar(20)
+  priority     String    @default("보통") @db.VarChar(20)
+  color        String    @default("#0EA5E9") @db.VarChar(7)
+  completedAt  DateTime? @map("completed_at")
+  notification Boolean   @default(false)
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  category Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  project  Project?  @relation(fields: [projectId], references: [id], onDelete: SetNull)
+
+  @@map("schedules")
+}
+
+// ============================
+// 테스트 기록 테이블
+// ============================
+model Experiment {
+  id           Int              @id @default(autoincrement())
+  userId       Int              @map("user_id")
+  categoryId   Int?             @map("category_id")
+  title        String           @db.VarChar(255)
+  purpose      String?          @db.Text
+  hypothesis   String?          @db.Text
+  method       String?          @db.Text
+  testDate     DateTime?        @map("test_date") @db.Date
+  conditions   String?          @db.Text
+  content      String?          @db.Text
+  result       String?          @db.Text
+  status       ExperimentStatus @default(in_progress)
+  metricData   Json?            @map("metric_data")
+  problems     String?          @db.Text
+  improvements String?          @db.Text
+  nextAction   String?          @map("next_action") @db.Text
+  relatedLinks String?          @map("related_links") @db.Text
+  memo         String?          @db.Text
+  createdAt    DateTime         @default(now()) @map("created_at")
+  updatedAt    DateTime         @updatedAt @map("updated_at")
+
+  user     User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  category Category?      @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  logs     ExperimentLog[]
+
+  @@map("experiments")
+}
+
+enum ExperimentStatus {
+  in_progress
+  success
+  failure
+  on_hold
+}
+
+// ============================
+// 테스트 변경 이력 테이블
+// ============================
+model ExperimentLog {
+  id           Int      @id @default(autoincrement())
+  experimentId Int      @map("experiment_id")
+  userId       Int      @map("user_id")
+  logType      LogType  @default(note) @map("log_type")
+  oldValue     String?  @map("old_value") @db.Text
+  newValue     String?  @map("new_value") @db.Text
+  note         String?  @db.Text
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  experiment Experiment @relation(fields: [experimentId], references: [id], onDelete: Cascade)
+  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("experiment_logs")
+}
+
+enum LogType {
+  status_change
+  result_update
+  note
+}
+
+// ============================
+// 범용 테스트 관리 테이블
+// ============================
+model Test {
+  id                  Int              @id @default(autoincrement())
+  userId              Int              @map("user_id")
+  title               String           @db.VarChar(255)
+  platform            String           @db.VarChar(100)
+  customPlatform      String?          @map("custom_platform") @db.VarChar(100)
+  testType            String           @map("test_type") @db.VarChar(100)
+  customTestType      String?          @map("custom_test_type") @db.VarChar(100)
+  targetName          String?          @map("target_name") @db.VarChar(255)
+  startDate           DateTime?        @map("start_date") @db.Date
+  endDate             DateTime?        @map("end_date") @db.Date
+  purpose             String?          @db.Text
+  hypothesis          String?          @db.Text
+  method              String?          @db.Text
+  conditions          String?          @db.Text
+  successCriteria     String?          @map("success_criteria") @db.Text
+  preMemo             String?          @map("pre_memo") @db.Text
+  primaryMetric       String           @map("primary_metric") @db.VarChar(100)
+  customPrimaryMetric String?          @map("custom_primary_metric") @db.VarChar(100)
+  metricDirection     MetricDirection  @map("metric_direction") @default(higher_better)
+  status              TestStatus       @default(planning)
+  resultStatus        ResultStatus?    @map("result_status")
+  resultSummary       String?          @map("result_summary") @db.Text
+  analysisMemo        String?          @map("analysis_memo") @db.Text
+  nextAction          String?          @map("next_action") @db.Text
+  createdAt           DateTime         @default(now()) @map("created_at")
+  updatedAt           DateTime         @updatedAt @map("updated_at")
+
+  user      User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  links     TestLink[]
+  snapshots TestMetricSnapshot[]
+
+  @@map("tests")
+}
+
+enum MetricDirection {
+  higher_better
+  lower_better
+}
+
+enum TestStatus {
+  planning
+  in_progress
+  recording
+  completed
+  on_hold
+}
+
+enum ResultStatus {
+  success
+  failure
+  unclear
+  pending
+}
+
+model TestLink {
+  id        Int      @id @default(autoincrement())
+  testId    Int      @map("test_id")
+  label     String   @db.VarChar(255)
+  url       String   @db.Text
+  memo      String?  @db.Text
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  test Test @relation(fields: [testId], references: [id], onDelete: Cascade)
+
+  @@map("test_links")
+}
+
+model TestMetricSnapshot {
+  id         Int            @id @default(autoincrement())
+  testId     Int            @map("test_id")
+  checkpoint TestCheckpoint
+  value      Float?
+  memo       String?        @db.Text
+  createdAt  DateTime       @default(now()) @map("created_at")
+  updatedAt  DateTime       @updatedAt @map("updated_at")
+
+  test Test @relation(fields: [testId], references: [id], onDelete: Cascade)
+
+  @@unique([testId, checkpoint])
+  @@map("test_metric_snapshots")
+}
+
+enum TestCheckpoint {
+  initial
+  after_12h
+  after_48h
+}
+
+// ============================
+// 외부 API 키 테이블
+// ============================
+model ApiKey {
+  id            Int       @id @default(autoincrement())
+  userId        Int       @map("user_id")
+  service       String    @db.VarChar(50)   // 'youtube' 등
+  label         String    @db.VarChar(100)
+  keyValue      String    @db.Text
+  isActive      Boolean   @default(true) @map("is_active")
+  quotaExceeded Boolean   @default(false) @map("quota_exceeded")
+  lastUsedAt    DateTime? @map("last_used_at")
+  lastError     String?   @map("last_error") @db.Text
+  sortOrder     Int       @default(0) @map("sort_order")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("api_keys")
+}
+
+// ============================
+// 자료 보관함 테이블
+// ============================
+model ResourceCategory {
+  id          Int      @id @default(autoincrement())
+  userId      Int      @map("user_id")
+  name        String   @db.VarChar(100)
+  description String?  @db.Text
+  color       String   @default("#0EA5E9") @db.VarChar(7)
+  sortOrder   Int      @default(0) @map("sort_order")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  user      User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  resources ResourceLink[]
+
+  @@unique([userId, name])
+  @@map("resource_categories")
+}
+
+model ResourceLink {
+  id                 Int       @id @default(autoincrement())
+  userId             Int       @map("user_id")
+  title              String    @db.VarChar(255)
+  url                String    @db.Text
+  memo               String?   @db.Text
+  platform           String?   @db.VarChar(100)
+  customPlatform     String?   @map("custom_platform") @db.VarChar(100)
+  resourceType       String?   @map("resource_type") @db.VarChar(100)
+  customResourceType String?   @map("custom_resource_type") @db.VarChar(100)
+  status             String    @default("확인 전") @db.VarChar(50)
+  priority           String    @default("보통") @db.VarChar(50)
+  isFavorite         Boolean   @default(false) @map("is_favorite")
+  folder             String?   @db.VarChar(100)
+  tags               Json?
+  thumbnailUrl       String?   @map("thumbnail_url") @db.Text
+  thumbnailSource    String?   @map("thumbnail_source") @db.VarChar(20)
+  ytVideoId          String?   @map("yt_video_id") @db.VarChar(20)
+  ytOriginalTitle    String?   @map("yt_original_title") @db.Text
+  ytChannelName      String?   @map("yt_channel_name") @db.VarChar(255)
+  ytChannelId        String?   @map("yt_channel_id") @db.VarChar(100)
+  ytPublishedAt      DateTime? @map("yt_published_at")
+  ytDescription      String?   @map("yt_description") @db.Text
+  ytDuration         String?   @map("yt_duration") @db.VarChar(30)
+  ytViewCount        String?   @map("yt_view_count") @db.VarChar(30)
+  ytLikeCount        String?   @map("yt_like_count") @db.VarChar(30)
+  ytCommentCount     String?   @map("yt_comment_count") @db.VarChar(30)
+  ytPrivacyStatus    String?   @map("yt_privacy_status") @db.VarChar(20)
+  ytApiLastFetched   DateTime? @map("yt_api_last_fetched")
+  ytApiFetchSuccess  Boolean?  @map("yt_api_fetch_success")
+  ytApiError         String?   @map("yt_api_error") @db.Text
+  registeredAt       DateTime  @default(now()) @map("registered_at") @db.Date
+  sourcePublishedAt  DateTime? @map("source_published_at") @db.Date
+  categoryId         Int?      @map("category_id")
+  projectId          Int?      @map("project_id")
+  testId             Int?      @map("test_id")
+  createdAt          DateTime  @default(now()) @map("created_at")
+  updatedAt          DateTime  @updatedAt @map("updated_at")
+
+  user         User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  category     ResourceCategory?     @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  relatedLinks ResourceRelatedLink[]
+  ideas        Idea[]
+
+  @@map("resource_links")
+}
+
+model ResourceRelatedLink {
+  id         Int      @id @default(autoincrement())
+  resourceId Int      @map("resource_id")
+  title      String   @db.VarChar(255)
+  url        String   @db.Text
+  memo       String?  @db.Text
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  resource ResourceLink @relation(fields: [resourceId], references: [id], onDelete: Cascade)
+
+  @@map("resource_related_links")
+}
+
+// ============================
+// 시간 기록 테이블
+// ============================
+model TimeEntry {
+  id          Int           @id @default(autoincrement())
+  userId      Int           @map("user_id")
+  taskId      Int?          @map("task_id")
+  projectId   Int?          @map("project_id")
+  categoryId  Int?          @map("category_id")
+  title       String        @db.VarChar(255)
+  startedAt   DateTime      @map("started_at")
+  endedAt     DateTime?     @map("ended_at")
+  durationMin Int?          @map("duration_min")
+  entryType   TimeEntryType @default(work) @map("entry_type")
+  memo        String?       @db.Text
+  createdAt   DateTime      @default(now()) @map("created_at")
+  updatedAt   DateTime      @updatedAt @map("updated_at")
+
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  task     Task?     @relation(fields: [taskId], references: [id], onDelete: SetNull)
+  project  Project?  @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  category Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+
+  @@map("time_entries")
+}
+
+enum TimeEntryType {
+  work
+  pomodoro
+  short_break
+  long_break
+}
+
+// ============================
+// 업무 런처
+// ============================
+model LauncherGroup {
+  id          Int      @id @default(autoincrement())
+  userId      Int      @map("user_id")
+  name        String   @db.VarChar(100)
+  icon        String   @default("🚀") @db.VarChar(10)
+  color       String   @default("#6366F1") @db.VarChar(7)
+  description String?  @db.Text
+  sortOrder   Int      @default(0) @map("sort_order")
+  isPinned    Boolean  @default(false) @map("is_pinned")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  user    User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  links   LauncherLink[]
+  folders LauncherFolder[]
+
+  @@map("launcher_groups")
+}
+
+model LauncherLink {
+  id             Int       @id @default(autoincrement())
+  groupId        Int       @map("group_id")
+  name           String    @db.VarChar(100)
+  url            String    @db.VarChar(2048)
+  description    String?   @db.Text
+  sortOrder      Int       @default(0) @map("sort_order")
+  isActive       Boolean   @default(true) @map("is_active")
+  openNewTab     Boolean   @default(true) @map("open_new_tab")
+  isFavorite     Boolean   @default(false) @map("is_favorite")
+  launchCount    Int       @default(0) @map("launch_count")
+  lastLaunchedAt DateTime? @map("last_launched_at")
+  createdAt      DateTime  @default(now()) @map("created_at")
+
+  group LauncherGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+
+  @@map("launcher_links")
+}
+
+model LauncherFolder {
+  id          Int      @id @default(autoincrement())
+  groupId     Int      @map("group_id")
+  name        String   @db.VarChar(100)
+  path        String   @db.VarChar(1024)
+  description String?  @db.Text
+  sortOrder   Int      @default(0) @map("sort_order")
+  isActive    Boolean  @default(true) @map("is_active")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  group LauncherGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+
+  @@map("launcher_folders")
+}
+
+model IdeaCategory {
+  id        Int      @id @default(autoincrement())
+  userId    Int      @map("user_id")
+  name      String   @db.VarChar(100)
+  color     String   @default("#0EA5E9") @db.VarChar(7)
+  sortOrder Int      @default(0) @map("sort_order")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user  User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  ideas Idea[]
+
+  @@unique([userId, name])
+  @@map("idea_categories")
+}
+
+model Idea {
+  id             Int       @id @default(autoincrement())
+  userId         Int       @map("user_id")
+  title          String    @db.VarChar(255)
+  content        String?   @db.Text
+  categoryId     Int?      @map("category_id")
+  projectId      Int?      @map("project_id")
+  resourceId     Int?      @map("resource_id")
+  status         String    @default("미정") @db.VarChar(20)
+  importance     String    @default("보통") @db.VarChar(20)
+  difficulty     String    @default("보통") @db.VarChar(20)
+  expectedEffect String    @default("보통") @map("expected_effect") @db.VarChar(20)
+  tags           Json?
+  memo           String?   @db.Text
+  dueDate        DateTime? @map("due_date") @db.Date
+  isFavorite     Boolean   @default(false) @map("is_favorite")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+
+  user         User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  category     IdeaCategory?     @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  project      Project?          @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  resource     ResourceLink?     @relation(fields: [resourceId], references: [id], onDelete: SetNull)
+  relatedLinks IdeaRelatedLink[]
+
+  @@map("ideas")
+}
+
+model IdeaRelatedLink {
+  id        Int      @id @default(autoincrement())
+  ideaId    Int      @map("idea_id")
+  title     String   @db.VarChar(255)
+  url       String   @db.Text
+  memo      String?  @db.Text
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  idea Idea @relation(fields: [ideaId], references: [id], onDelete: Cascade)
+
+  @@map("idea_related_links")
+}
