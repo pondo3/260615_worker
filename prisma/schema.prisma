@@ -41,6 +41,7 @@ model User {
   launcherGroups     LauncherGroup[]
   ideaCategories     IdeaCategory[]
   ideas              Idea[]
+  records            Record[]
 
   @@map("users")
 }
@@ -696,4 +697,41 @@ model IdeaRelatedLink {
   idea Idea @relation(fields: [ideaId], references: [id], onDelete: Cascade)
 
   @@map("idea_related_links")
+}
+
+// ============================
+// 나의 기록 테이블
+// ============================
+model Record {
+  id        Int      @id @default(autoincrement())
+  userId    Int      @map("user_id")
+  title     String   @db.VarChar(255)
+  date      DateTime @db.Date
+  type      String   @default("일기") @db.VarChar(20)
+  content   String?  @db.Text
+  tags      Json     @default("[]")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user       User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  videoLinks RecordVideoLink[]
+
+  @@map("records")
+}
+
+model RecordVideoLink {
+  id           Int      @id @default(autoincrement())
+  recordId     Int      @map("record_id")
+  url          String   @db.VarChar(2048)
+  title        String?  @db.VarChar(500)
+  thumbnailUrl String?  @map("thumbnail_url") @db.VarChar(2048)
+  channelName  String?  @map("channel_name") @db.VarChar(255)
+  duration     String?  @db.VarChar(20)
+  memo         String?  @db.Text
+  sortOrder    Int      @default(0) @map("sort_order")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  record Record @relation(fields: [recordId], references: [id], onDelete: Cascade)
+
+  @@map("record_video_links")
 }
