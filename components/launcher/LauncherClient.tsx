@@ -628,31 +628,33 @@ export default function LauncherClient({ groups }: { groups: LauncherGroup[] }) 
                       >
                         {/* 상단 */}
                         <div className="flex items-start gap-3">
-                          {/* 파비콘 */}
-                          <div className="flex-shrink-0 w-8 h-8 flex items-center justify-center">
-                            {faviconUrl && !hasFaviconError ? (
-                              // eslint-disable-next-line @next/next/no-img-element
-                              <img
-                                src={faviconUrl}
-                                alt=""
-                                width={32}
-                                height={32}
-                                className="rounded"
-                                onError={() => setFaviconErrors((prev) => new Set(prev).add(link.id))}
-                              />
-                            ) : (
-                              <span className="text-2xl">🌐</span>
-                            )}
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <button
-                              onClick={() => handleLinkClick(link)}
-                              className="block w-full text-left text-sm font-bold text-gray-900 dark:text-white hover:text-violet-600 dark:hover:text-violet-400 transition-colors truncate"
-                            >
-                              {link.name}
-                            </button>
-                            <p className="text-xs text-gray-400 dark:text-gray-500 truncate mt-0.5">{link.url}</p>
-                          </div>
+                          {/* 파비콘 + 이름 + URL: 전체가 클릭 가능 */}
+                          <button
+                            onClick={() => handleLinkClick(link)}
+                            className="flex items-center gap-3 flex-1 min-w-0 text-left group"
+                          >
+                            <div className="flex-shrink-0 w-8 h-8 flex items-center justify-center">
+                              {faviconUrl && !hasFaviconError ? (
+                                // eslint-disable-next-line @next/next/no-img-element
+                                <img
+                                  src={faviconUrl}
+                                  alt=""
+                                  width={32}
+                                  height={32}
+                                  className="rounded"
+                                  onError={() => setFaviconErrors((prev) => new Set(prev).add(link.id))}
+                                />
+                              ) : (
+                                <span className="text-2xl">🌐</span>
+                              )}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-bold text-gray-900 dark:text-white group-hover:text-violet-600 dark:group-hover:text-violet-400 transition-colors truncate">
+                                {link.name}
+                              </p>
+                              <p className="text-xs text-gray-400 dark:text-gray-500 truncate mt-0.5">{link.url}</p>
+                            </div>
+                          </button>
                           {/* 즐겨찾기 버튼 */}
                           <button
                             onClick={() => handleToggleLinkFavorite(link.id)}
