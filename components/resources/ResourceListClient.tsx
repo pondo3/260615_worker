@@ -1,9 +1,10 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { useState, useTransition, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { deleteResource, toggleFavorite } from '@/app/actions/resources'
 import { refreshYoutubeData } from '@/app/actions/youtube'
+import { createResourceFolder, updateResourceFolder, deleteResourceFolder, type FolderNode } from '@/app/actions/resourceFolders'
 import ResourceModal, { ResourceItem } from './ResourceModal'
 import CategoryManager from './CategoryManager'
 
@@ -43,6 +44,8 @@ type Resource = {
   categoryColor: string | null
   projectId: number | null
   testId: number | null
+  folderId: number | null
+  folderName: string | null
   relatedLinks: { id: number; title: string; url: string; memo: string | null }[]
 }
 
@@ -53,6 +56,7 @@ type Props = {
   categories: Category[]
   projects: { id: number; title: string }[]
   tests: { id: number; title: string }[]
+  folders: FolderNode[]
 }
 
 const STATUS_BADGE: Record<string, string> = {
@@ -170,8 +174,62 @@ function ThumbnailBox({ r, size }: { r: Resource; size: 'sm' | 'lg' }) {
 }
 
 type SortKey = 'newest' | 'oldest' | 'priority' | 'category' | 'status'
+type SelectedFolder = 'all' | 'favorites' | 'recent' | 'unassigned' | number
 
-export default function ResourceListClient({ resources, categories, projects, tests }: Props) {
+type FolderTreeItemProps = {
+  node: FolderNode
+  depth: number
+  selected: SelectedFolder
+  onSelect: (id: number) => void
+  onCreateChild: (parentId: number) => void
+  onStartRename: (id: number, name: string) => void
+  onDelete: (id: number, name: string) => void
+}
+
+function FolderTreeItem({ node, depth, selected, onSelect, onCreateChild, onStartRename, onDelete }: FolderTreeItemProps) {
+  const [expanded, setExpanded] = useState(true)
+  const isSelected = selected === node.id
+  return (
+    <div>
+      <div
+        className={`group flex items-center gap-0.5 pr-1 py-1 rounded-lg cursor-pointer transition-colors ${isSelected ? 'bg-teal-50 dark:bg-teal-900/20 text-teal-700 dark:text-teal-400' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800'}`}
+        style={{ paddingLeft: `${8 + depth * 14}px` }}
+      >
+        <button
+          onClick={() => node.children.length > 0 && setExpanded(!expanded)}
+          className="w-4 h-4 flex-shrink-0 flex items-center justify-center text-[10px] text-gray-400"
+        >
+          {node.children.length > 0 ? (expanded ? '▾' : '▸') : '·'}
+        </button>
+        <button onClick={() => onSelect(node.id)} className="flex-1 text-left text-xs font-medium flex items-center gap-1 min-w-0">
+          <span className="flex-shrink-0 text-[11px]">📁</span>
+          <span className="truncate">{node.name}</span>
+          <span className="text-[10px] text-gray-400 dark:text-gray-500 flex-shrink-0">({node._count})</span>
+        </button>
+        <div className="hidden group-hover:flex items-center gap-0.5 flex-shrink-0">
+          <button onClick={() => { onCreateChild(node.id) }} title="하위 폴더 만들기"
+            className="p-0.5 rounded hover:text-teal-600 dark:hover:text-teal-400 text-gray-300">
+            <svg className="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
+          </button>
+          <button onClick={() => onStartRename(node.id, node.name)} title="이름 변경"
+            className="p-0.5 rounded hover:text-blue-600 dark:hover:text-blue-400 text-gray-300">
+            <svg className="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+          </button>
+          <button onClick={() => onDelete(node.id, node.name)} title="삭제"
+            className="p-0.5 rounded hover:text-red-500 dark:hover:text-red-400 text-gray-300">
+            <svg className="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+          </button>
+        </div>
+      </div>
+      {expanded && node.children.map((child) => (
+        <FolderTreeItem key={child.id} node={child} depth={depth + 1} selected={selected}
+          onSelect={onSelect} onCreateChild={onCreateChild} onStartRename={onStartRename} onDelete={onDelete} />
+      ))}
+    </div>
+  )
+}
+
+export default function ResourceListClient({ resources, categories, projects, tests, folders }: Props) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
 
@@ -186,8 +244,43 @@ export default function ResourceListClient({ resources, categories, projects, te
   const [filterStatus, setFilterStatus] = useState('')
   const [filterPriority, setFilterPriority] = useState('')
   const [sortKey, setSortKey] = useState<SortKey>('newest')
-  const [view, setView] = useState<'table' | 'card'>('card')
+  const [view, setView] = useState<'table' | 'card'>('table')
+  useEffect(() => {
+    const s = localStorage.getItem('view_resources')
+    if (s === 'card' || s === 'table') setView(s)
+  }, [])
+  const changeView = (v: 'table' | 'card') => { setView(v); localStorage.setItem('view_resources', v) }
   const [copiedId, setCopiedId] = useState<number | null>(null)
+
+  // Folder state
+  const [selectedFolder, setSelectedFolder] = useState<SelectedFolder>('all')
+  const [folderDialog, setFolderDialog] = useState<{ mode: 'create'; parentId: number | null } | { mode: 'rename'; folderId: number; currentName: string } | null>(null)
+  const [folderDialogName, setFolderDialogName] = useState('')
+  const [folderDeleteTarget, setFolderDeleteTarget] = useState<{ id: number; name: string } | null>(null)
+
+  async function handleFolderSubmit() {
+    if (!folderDialog) return
+    if (folderDialog.mode === 'create') {
+      const res = await createResourceFolder(folderDialogName, folderDialog.parentId)
+      if (res.success) { setFolderDialog(null); setFolderDialogName(''); router.refresh() }
+      else alert(res.error)
+    } else {
+      const res = await updateResourceFolder(folderDialog.folderId, folderDialogName)
+      if (res.success) { setFolderDialog(null); setFolderDialogName(''); router.refresh() }
+      else alert(res.error)
+    }
+  }
+
+  async function handleFolderDelete() {
+    if (!folderDeleteTarget) return
+    const res = await deleteResourceFolder(folderDeleteTarget.id)
+    if (res.success) {
+      if (selectedFolder === folderDeleteTarget.id) setSelectedFolder('all')
+      setFolderDeleteTarget(null); router.refresh()
+    } else {
+      alert(res.error)
+    }
+  }
 
   // 통계
   const total = resources.length
@@ -217,7 +310,14 @@ export default function ResourceListClient({ resources, categories, projects, te
       const matchType = !filterType || effectiveType === filterType
       const matchStatus = !filterStatus || r.status === filterStatus
       const matchPriority = !filterPriority || r.priority === filterPriority
-      return matchSearch && matchCat && matchPlat && matchType && matchStatus && matchPriority
+      let matchFolder = true
+      if (selectedFolder === 'favorites') matchFolder = r.isFavorite
+      else if (selectedFolder === 'recent') {
+        const sevenDaysAgo = new Date(Date.now() - 7 * 86400000).toISOString().split('T')[0]
+        matchFolder = r.registeredAt >= sevenDaysAgo
+      } else if (selectedFolder === 'unassigned') matchFolder = r.folderId === null
+      else if (typeof selectedFolder === 'number') matchFolder = r.folderId === selectedFolder
+      return matchSearch && matchCat && matchPlat && matchType && matchStatus && matchPriority && matchFolder
     })
     .sort((a, b) => {
       if (sortKey === 'newest') return b.registeredAt.localeCompare(a.registeredAt)
@@ -245,6 +345,7 @@ export default function ResourceListClient({ resources, categories, projects, te
       ytApiFetchSuccess: r.ytApiFetchSuccess, ytApiError: r.ytApiError,
       registeredAt: r.registeredAt, sourcePublishedAt: r.sourcePublishedAt,
       categoryId: r.categoryId, projectId: r.projectId, testId: r.testId,
+      folderId: r.folderId,
       relatedLinks: r.relatedLinks,
     })
     setShowModal(true)
@@ -356,7 +457,48 @@ export default function ResourceListClient({ resources, categories, projects, te
         </div>
       </div>
 
-      <div className="px-4 sm:px-6 py-4 space-y-3">
+      <div className="flex">
+        {/* ── 좌측 폴더 트리 ── */}
+        <div className="w-52 flex-shrink-0 bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-800 min-h-[calc(100vh-220px)]">
+          <div className="p-3 space-y-0.5">
+            {([
+              { key: 'all' as const, label: '전체 자료', icon: '◎', count: resources.length },
+              { key: 'favorites' as const, label: '즐겨찾기', icon: '★', count: resources.filter((r) => r.isFavorite).length },
+              { key: 'recent' as const, label: '최근 7일', icon: '🕐', count: resources.filter((r) => r.registeredAt >= new Date(Date.now() - 7 * 86400000).toISOString().split('T')[0]).length },
+              { key: 'unassigned' as const, label: '미분류', icon: '📂', count: resources.filter((r) => !r.folderId).length },
+            ]).map((item) => (
+              <button key={item.key} onClick={() => setSelectedFolder(item.key)}
+                className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs font-medium transition-colors ${selectedFolder === item.key ? 'bg-teal-50 dark:bg-teal-900/20 text-teal-700 dark:text-teal-400' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800'}`}>
+                <span className="flex-shrink-0">{item.icon}</span>
+                <span className="flex-1 text-left">{item.label}</span>
+                <span className="text-[10px] text-gray-400">{item.count}</span>
+              </button>
+            ))}
+
+            <div className="flex items-center justify-between px-2 pt-3 pb-0.5">
+              <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">폴더</span>
+              <button onClick={() => { setFolderDialog({ mode: 'create', parentId: null }); setFolderDialogName('') }}
+                className="p-0.5 rounded hover:text-teal-600 dark:hover:text-teal-400 text-gray-400" title="루트 폴더 만들기">
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
+              </button>
+            </div>
+
+            {folders.length === 0 && (
+              <p className="text-[11px] text-gray-400 dark:text-gray-500 px-2 py-1">폴더를 만들어 자료를 정리하세요</p>
+            )}
+            {folders.map((node) => (
+              <FolderTreeItem key={node.id} node={node} depth={0} selected={selectedFolder}
+                onSelect={(id) => setSelectedFolder(id)}
+                onCreateChild={(parentId) => { setFolderDialog({ mode: 'create', parentId }); setFolderDialogName('') }}
+                onStartRename={(id, name) => { setFolderDialog({ mode: 'rename', folderId: id, currentName: name }); setFolderDialogName(name) }}
+                onDelete={(id, name) => setFolderDeleteTarget({ id, name })}
+              />
+            ))}
+          </div>
+        </div>
+
+        {/* ── 우측 콘텐츠 ── */}
+        <div className="flex-1 px-4 sm:px-6 py-4 space-y-3">
         {/* 검색 + 정렬 + 뷰 토글 */}
         <div className="flex items-center gap-2 flex-wrap">
           <div className="flex-1 min-w-48 relative">
@@ -380,7 +522,7 @@ export default function ResourceListClient({ resources, categories, projects, te
           </select>
           <div className="flex bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl overflow-hidden">
             {(['card', 'table'] as const).map((v) => (
-              <button key={v} onClick={() => setView(v)}
+              <button key={v} onClick={() => changeView(v)}
                 className={`px-3 py-2.5 transition-colors ${view === v ? 'bg-teal-500 text-white' : 'text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800'}`}>
                 {v === 'card' ? (
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zm10 0a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zm10 0a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" /></svg>
@@ -711,7 +853,60 @@ export default function ResourceListClient({ resources, categories, projects, te
             )}
           </div>
         )}
-      </div>
+        </div>{/* end flex-1 content */}
+      </div>{/* end flex */}
+
+      {/* 폴더 만들기/이름변경 다이얼로그 */}
+      {folderDialog !== null && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl p-6 w-full max-w-sm border border-gray-200 dark:border-gray-700">
+            <h3 className="text-base font-bold text-gray-900 dark:text-white mb-4">
+              {folderDialog.mode === 'create' ? '폴더 만들기' : '폴더 이름 변경'}
+            </h3>
+            <input
+              autoFocus
+              value={folderDialogName}
+              onChange={(e) => setFolderDialogName(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter') handleFolderSubmit(); if (e.key === 'Escape') setFolderDialog(null) }}
+              placeholder="폴더 이름"
+              className="w-full px-3 py-2.5 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-sm text-gray-900 dark:text-white outline-none focus:border-teal-400 mb-4"
+            />
+            <div className="flex gap-2">
+              <button onClick={() => setFolderDialog(null)}
+                className="flex-1 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 text-sm font-semibold text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
+                취소
+              </button>
+              <button onClick={handleFolderSubmit}
+                className="flex-1 py-2.5 rounded-xl bg-teal-500 text-sm font-bold text-white hover:bg-teal-600 transition-colors">
+                확인
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 폴더 삭제 확인 */}
+      {folderDeleteTarget !== null && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl p-6 w-full max-w-sm border border-gray-200 dark:border-gray-700">
+            <h3 className="text-base font-bold text-gray-900 dark:text-white mb-2">폴더 삭제</h3>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">
+              <span className="font-semibold text-gray-700 dark:text-gray-300">{folderDeleteTarget.name}</span> 폴더를 삭제하시겠어요?
+            </p>
+            <p className="text-xs text-amber-600 dark:text-amber-400 mb-5">폴더 안의 자료는 미분류로 이동됩니다.</p>
+            <div className="flex gap-2">
+              <button onClick={() => setFolderDeleteTarget(null)}
+                className="flex-1 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 text-sm font-semibold text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
+                취소
+              </button>
+              <button onClick={handleFolderDelete}
+                className="flex-1 py-2.5 rounded-xl bg-red-500 text-sm font-bold text-white hover:bg-red-600 transition-colors">
+                삭제
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* 삭제 확인 */}
       {deleteId !== null && (
@@ -749,6 +944,7 @@ export default function ResourceListClient({ resources, categories, projects, te
           categories={modalCats}
           projects={projects}
           tests={tests}
+          folders={folders}
           existingResources={resources.map((r) => ({ id: r.id, url: r.url, title: r.title }))}
         />
       )}

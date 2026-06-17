@@ -4,6 +4,7 @@ import { useActionState, useEffect, useState } from 'react'
 import { createResource, updateResource, createResourcesBulk } from '@/app/actions/resources'
 import type { BulkResourceItem } from '@/app/actions/resources'
 import { fetchYoutubeInfo } from '@/app/actions/youtube'
+import type { FolderNode } from '@/app/actions/resourceFolders'
 
 export type ResourceItem = {
   id: number
@@ -39,6 +40,7 @@ export type ResourceItem = {
   categoryId: number | null
   projectId: number | null
   testId: number | null
+  folderId: number | null
   relatedLinks: { id?: number; title: string; url: string; memo: string | null }[]
 }
 
@@ -69,6 +71,7 @@ type Props = {
   categories: { id: number; name: string; color: string }[]
   projects: { id: number; title: string }[]
   tests: { id: number; title: string }[]
+  folders?: FolderNode[]
   existingResources?: { id: number; url: string; title: string }[]
 }
 
@@ -150,7 +153,7 @@ function formatCount(n: string | null | undefined): string {
   return num.toLocaleString()
 }
 
-export default function ResourceModal({ onClose, resource, categories, projects, tests, existingResources = [] }: Props) {
+export default function ResourceModal({ onClose, resource, categories, projects, tests, folders = [], existingResources = [] }: Props) {
   const isEdit = !!resource
   const action = isEdit ? updateResource : createResource
   const [state, formAction, pending] = useActionState(action, undefined)
@@ -176,6 +179,7 @@ export default function ResourceModal({ onClose, resource, categories, projects,
   const [categoryId, setCategoryId] = useState(resource?.categoryId?.toString() ?? '')
   const [projectId, setProjectId] = useState(resource?.projectId?.toString() ?? '')
   const [testId, setTestId] = useState(resource?.testId?.toString() ?? '')
+  const [folderId, setFolderId] = useState(resource?.folderId?.toString() ?? '')
   const [relatedLinks, setRelatedLinks] = useState<RelatedLinkRow[]>(
     resource?.relatedLinks?.map((l) => ({ id: l.id, title: l.title, url: l.url, memo: l.memo ?? '' })) ?? []
   )
@@ -430,6 +434,11 @@ export default function ResourceModal({ onClose, resource, categories, projects,
     ? (thumbnailSource === 'youtube' || ytFetchStatus !== 'idle')
     : !!(ytVideoId || (thumbnailSource === 'youtube'))
 
+  function flattenFolders(nodes: FolderNode[], depth: number): { id: number; name: string; depth: number }[] {
+    return nodes.flatMap((n) => [{ id: n.id, name: n.name, depth }, ...flattenFolders(n.children, depth + 1)])
+  }
+  const flatFolders = flattenFolders(folders, 0)
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={onClose}>
       <div
@@ -504,6 +513,7 @@ export default function ResourceModal({ onClose, resource, categories, projects,
             <input type="hidden" name="categoryId" value={categoryId} />
             <input type="hidden" name="projectId" value={projectId} />
             <input type="hidden" name="testId" value={testId} />
+            <input type="hidden" name="folderId" value={folderId} />
             <input type="hidden" name="relatedLinks" value={JSON.stringify(serializedLinks)} />
 
             <div className="px-6 py-5 space-y-5">
@@ -813,6 +823,17 @@ export default function ResourceModal({ onClose, resource, categories, projects,
                 </svg>
                 {isFavorite ? '즐겨찾기 등록됨' : '즐겨찾기에 추가'}
               </button>
+
+              {folders.length > 0 && (
+                <div>
+                  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1.5 block">폴더</label>
+                  <select value={folderId} onChange={(e) => setFolderId(e.target.value)}
+                    className="w-full text-sm bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl px-3 py-2 text-gray-700 dark:text-gray-300 outline-none focus:border-teal-400 transition-colors">
+                    <option value="">미분류</option>
+                    {flatFolders.map((f) => <option key={f.id} value={f.id}>{"  ".repeat(f.depth)}{f.depth > 0 ? "L " : ""}{f.name}</option>)}
+                  </select>
+                </div>
+              )}
 
               {(projects.length > 0 || tests.length > 0) && (
                 <div className="grid grid-cols-2 gap-3">

@@ -1,14 +1,19 @@
 import { verifySession } from '@/lib/dal'
 import { prisma } from '@/lib/prisma'
 import ResourceListClient from '@/components/resources/ResourceListClient'
+import { getResourceFolders } from '@/app/actions/resourceFolders'
 
 export default async function ResourcesPage() {
   const session = await verifySession()
 
-  const [resources, categories, projects, tests] = await Promise.all([
+  const [resources, categories, projects, tests, folders] = await Promise.all([
     prisma.resourceLink.findMany({
       where: { userId: session.userId },
-      include: { category: true, relatedLinks: { orderBy: { createdAt: 'asc' } } },
+      include: {
+        category: true,
+        relatedLinks: { orderBy: { createdAt: 'asc' } },
+        resourceFolder: { select: { id: true, name: true } },
+      },
       orderBy: { registeredAt: 'desc' },
     }),
     prisma.resourceCategory.findMany({
@@ -26,6 +31,7 @@ export default async function ResourcesPage() {
       orderBy: { title: 'asc' },
       select: { id: true, title: true },
     }),
+    getResourceFolders(),
   ])
 
   return (
@@ -66,6 +72,8 @@ export default async function ResourcesPage() {
         categoryColor: r.category?.color ?? null,
         projectId: r.projectId,
         testId: r.testId,
+        folderId: r.folderId,
+        folderName: r.resourceFolder?.name ?? null,
         relatedLinks: r.relatedLinks.map((l) => ({ id: l.id, title: l.title, url: l.url, memo: l.memo })),
       }))}
       categories={categories.map((c) => ({
@@ -78,6 +86,7 @@ export default async function ResourcesPage() {
       }))}
       projects={projects}
       tests={tests}
+      folders={folders}
     />
   )
 }

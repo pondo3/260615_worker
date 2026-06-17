@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { useState, useTransition, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { deleteRoutine, toggleRoutineLog } from '@/app/actions/routines'
 import RoutineModal from './RoutineModal'
@@ -274,7 +274,12 @@ export default function RoutineListClient({
   statsMap: StatsMap
 }) {
   const [filter, setFilter] = useState<FilterKey>('all')
-  const [view, setView] = useState<'card' | 'list'>('card')
+  const [view, setView] = useState<'card' | 'list'>('list')
+  useEffect(() => {
+    const s = localStorage.getItem('view_routines')
+    if (s === 'card' || s === 'list') setView(s)
+  }, [])
+  const changeView = (v: 'card' | 'list') => { setView(v); localStorage.setItem('view_routines', v) }
   const [showAdd, setShowAdd] = useState(false)
   const [editRoutine, setEditRoutine] = useState<Routine | null>(null)
   const [localLog, setLocalLog] = useState<LogMap>(logMap)
@@ -400,14 +405,14 @@ export default function RoutineListClient({
           ))}
         </div>
         <div className="flex items-center gap-0.5 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl p-1 flex-shrink-0">
-          <button onClick={() => setView('card')}
+          <button onClick={() => changeView('card')}
             className={`p-1.5 rounded-lg transition-colors ${view === 'card' ? 'bg-gray-900 dark:bg-white text-white dark:text-gray-900' : 'text-gray-400'}`}>
             <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24">
               <rect x="3" y="3" width="7" height="7" rx="1" /><rect x="14" y="3" width="7" height="7" rx="1" />
               <rect x="3" y="14" width="7" height="7" rx="1" /><rect x="14" y="14" width="7" height="7" rx="1" />
             </svg>
           </button>
-          <button onClick={() => setView('list')}
+          <button onClick={() => changeView('list')}
             className={`p-1.5 rounded-lg transition-colors ${view === 'list' ? 'bg-gray-900 dark:bg-white text-white dark:text-gray-900' : 'text-gray-400'}`}>
             <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />

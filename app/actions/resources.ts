@@ -165,6 +165,7 @@ function extractFields(formData: FormData) {
     categoryId: (formData.get('categoryId') as string) ? Number(formData.get('categoryId')) : null,
     projectId: (formData.get('projectId') as string) ? Number(formData.get('projectId')) : null,
     testId: (formData.get('testId') as string) ? Number(formData.get('testId')) : null,
+    folderId: (formData.get('folderId') as string) ? Number(formData.get('folderId')) : null,
   }
 }
 
@@ -214,6 +215,7 @@ export async function createResource(state: ResourceFormState, formData: FormDat
       categoryId: f.categoryId,
       projectId: f.projectId,
       testId: f.testId,
+      folderId: f.folderId,
     },
   })
 
@@ -276,6 +278,7 @@ export async function updateResource(state: ResourceFormState, formData: FormDat
       categoryId: f.categoryId,
       projectId: f.projectId,
       testId: f.testId,
+      folderId: f.folderId,
     },
   })
 

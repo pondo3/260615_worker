@@ -36,6 +36,7 @@ model User {
   tests              Test[]
   resourceCategories ResourceCategory[]
   resourceLinks      ResourceLink[]
+  resourceFolders    ResourceFolder[]
   apiKeys            ApiKey[]
   timeEntries        TimeEntry[]
   launcherGroups     LauncherGroup[]
@@ -529,15 +530,34 @@ model ResourceLink {
   categoryId         Int?      @map("category_id")
   projectId          Int?      @map("project_id")
   testId             Int?      @map("test_id")
+  folderId           Int?      @map("folder_id")
   createdAt          DateTime  @default(now()) @map("created_at")
   updatedAt          DateTime  @updatedAt @map("updated_at")
 
-  user         User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
-  category     ResourceCategory?     @relation(fields: [categoryId], references: [id], onDelete: SetNull)
-  relatedLinks ResourceRelatedLink[]
-  ideas        Idea[]
+  user           User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  category       ResourceCategory?     @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  resourceFolder ResourceFolder?       @relation(fields: [folderId], references: [id], onDelete: SetNull)
+  relatedLinks   ResourceRelatedLink[]
+  ideas          Idea[]
 
   @@map("resource_links")
+}
+
+model ResourceFolder {
+  id        Int      @id @default(autoincrement())
+  userId    Int      @map("user_id")
+  name      String   @db.VarChar(100)
+  parentId  Int?     @map("parent_id")
+  sortOrder Int      @default(0) @map("sort_order")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  parent    ResourceFolder?  @relation("FolderTree", fields: [parentId], references: [id], onDelete: Cascade)
+  children  ResourceFolder[] @relation("FolderTree")
+  resources ResourceLink[]
+
+  @@map("resource_folders")
 }
 
 model ResourceRelatedLink {
