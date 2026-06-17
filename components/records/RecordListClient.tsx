@@ -42,6 +42,10 @@ function getTypeStyle(type: string) {
   return TYPE_STYLE[type] ?? TYPE_STYLE['기타']
 }
 
+function stripHtml(html: string): string {
+  return html.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim()
+}
+
 function extractYtId(url: string): string | null {
   const m = url.match(/(?:youtube\.com\/(?:watch\?v=|shorts\/|embed\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/)
   return m?.[1] ?? null
@@ -268,7 +272,7 @@ export default function RecordListClient({ records }: { records: RecordItem[] })
                     </p>
                     {r.content && (
                       <p className="text-xs text-gray-500 dark:text-gray-400 line-clamp-3 mb-2 leading-relaxed">
-                        {r.content}
+                        {stripHtml(r.content)}
                       </p>
                     )}
                     <div className="flex items-center gap-1.5 flex-wrap">
@@ -330,9 +334,10 @@ export default function RecordListClient({ records }: { records: RecordItem[] })
                   <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500 mb-1.5">
                     내용
                   </p>
-                  <p className="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap leading-relaxed">
-                    {selectedRecord.content}
-                  </p>
+                  <div
+                    className="prose prose-sm dark:prose-invert max-w-none text-sm text-gray-700 dark:text-gray-300 leading-relaxed"
+                    dangerouslySetInnerHTML={{ __html: selectedRecord.content }}
+                  />
                 </div>
               )}
 

@@ -1,8 +1,10 @@
-'use server'
+﻿'use server'
 
 import { revalidatePath } from 'next/cache'
 import { prisma } from '@/lib/prisma'
 import { verifySession } from '@/lib/dal'
+import { syncAttachments } from './attachments'
+import { parseAttachmentsFromFormData } from '@/lib/parseAttachments'
 
 export type TaskFormState =
   | { success: true }
@@ -45,7 +47,7 @@ export async function createTask(state: TaskFormState, formData: FormData): Prom
   if (!fields.title) return { errors: { title: ['제목을 입력하세요.'] } }
   if (!fields.taskDate) return { errors: { taskDate: ['날짜를 선택하세요.'] } }
 
-  await prisma.task.create({
+  const task = await prisma.task.create({
     data: {
       userId: session.userId,
       title: fields.title,
@@ -66,6 +68,7 @@ export async function createTask(state: TaskFormState, formData: FormData): Prom
     },
   })
 
+  await syncAttachments('task', task.id, session.userId, parseAttachmentsFromFormData(formData)).catch(() => {})
   revalidatePath('/tasks/today')
   revalidatePath('/tasks/tomorrow')
   revalidatePath('/tasks')
@@ -107,6 +110,7 @@ export async function updateTask(state: TaskFormState, formData: FormData): Prom
     },
   })
 
+  await syncAttachments('task', id, session.userId, parseAttachmentsFromFormData(formData)).catch(() => {})
   revalidatePath('/tasks/today')
   revalidatePath('/tasks/tomorrow')
   revalidatePath('/tasks')
@@ -155,3 +159,4 @@ export async function moveTaskToToday(id: number) {
   revalidatePath('/tasks')
   revalidatePath('/dashboard')
 }
+

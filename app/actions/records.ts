@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { prisma } from '@/lib/prisma'
 import { verifySession } from '@/lib/dal'
+import { syncAttachments, type AttachmentItem } from './attachments'
 
 export type VideoLinkInput = {
   url: string
@@ -20,12 +21,13 @@ export type RecordInput = {
   content?: string | null
   tags: string[]
   videoLinks: VideoLinkInput[]
+  attachments?: AttachmentItem[]
 }
 
 export async function createRecord(input: RecordInput): Promise<{ success: boolean; error?: string }> {
   try {
     const session = await verifySession()
-    await prisma.record.create({
+    const record = await prisma.record.create({
       data: {
         userId: session.userId,
         title: input.title.trim(),
@@ -46,6 +48,9 @@ export async function createRecord(input: RecordInput): Promise<{ success: boole
         },
       },
     })
+    if (input.attachments?.length) {
+      await syncAttachments('record', record.id, session.userId, input.attachments).catch(() => {})
+    }
     revalidatePath('/records')
     return { success: true }
   } catch {
@@ -82,6 +87,9 @@ export async function updateRecord(id: number, input: RecordInput): Promise<{ su
         },
       },
     })
+    if (input.attachments) {
+      await syncAttachments('record', id, session.userId, input.attachments).catch(() => {})
+    }
     revalidatePath('/records')
     return { success: true }
   } catch {

@@ -4,6 +4,8 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { fetchYoutubeInfo } from '@/app/actions/youtube'
 import { createRecord, updateRecord, type VideoLinkInput } from '@/app/actions/records'
+import EditorWithAttachments from '@/components/editor/EditorWithAttachments'
+import type { AttachmentItem } from '@/app/actions/attachments'
 
 const RECORD_TYPES = ['일기', '업무 기록', '영상 기록', '아이디어', '기타'] as const
 
@@ -60,6 +62,7 @@ export default function RecordModal({ isOpen, onClose, editingRecord }: Props) {
   const [date, setDate] = useState(() => new Date().toISOString().split('T')[0])
   const [type, setType] = useState('일기')
   const [content, setContent] = useState('')
+  const [attachments, setAttachments] = useState<AttachmentItem[]>([])
   const [tagInput, setTagInput] = useState('')
   const [tags, setTags] = useState<string[]>([])
   const [videoLinks, setVideoLinks] = useState<VideoLinkDraft[]>([])
@@ -75,6 +78,7 @@ export default function RecordModal({ isOpen, onClose, editingRecord }: Props) {
       setDate(editingRecord.date)
       setType(editingRecord.type)
       setContent(editingRecord.content ?? '')
+      setAttachments([])
       setTags(editingRecord.tags)
       setVideoLinks(
         editingRecord.videoLinks.map((v) => ({
@@ -93,6 +97,7 @@ export default function RecordModal({ isOpen, onClose, editingRecord }: Props) {
       setDate(new Date().toISOString().split('T')[0])
       setType('일기')
       setContent('')
+      setAttachments([])
       setTagInput('')
       setTags([])
       setVideoLinks([])
@@ -161,6 +166,7 @@ export default function RecordModal({ isOpen, onClose, editingRecord }: Props) {
       date,
       type,
       content: content || null,
+      attachments,
       tags,
       videoLinks: videoLinks
         .filter((v) => v.url.trim())
@@ -259,13 +265,18 @@ export default function RecordModal({ isOpen, onClose, editingRecord }: Props) {
           {/* Content */}
           <div>
             <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1.5">내용</label>
-            <textarea
-              value={content}
-              onChange={(e) => setContent(e.target.value)}
-              placeholder="기록 내용을 입력하세요..."
-              rows={6}
-              className="w-full px-3 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-amber-400 resize-none"
-            />
+            <div className="border border-gray-200 dark:border-gray-700 rounded-xl overflow-hidden">
+              <EditorWithAttachments
+                key={editingRecord?.id ?? 'new'}
+                name="content"
+                entityType="record"
+                entityId={editingRecord?.id}
+                defaultValue={editingRecord?.content ?? ''}
+                placeholder="기록 내용을 입력하세요..."
+                onContentChange={setContent}
+                onAttachmentsChange={setAttachments}
+              />
+            </div>
           </div>
 
           {/* Tags */}

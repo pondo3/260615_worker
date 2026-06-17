@@ -42,6 +42,7 @@ model User {
   ideaCategories     IdeaCategory[]
   ideas              Idea[]
   records            Record[]
+  attachments        Attachment[]
 
   @@map("users")
 }
@@ -697,6 +698,26 @@ model IdeaRelatedLink {
   idea Idea @relation(fields: [ideaId], references: [id], onDelete: Cascade)
 
   @@map("idea_related_links")
+}
+
+// ============================
+// 파일 첨부 테이블 (공통)
+// ============================
+model Attachment {
+  id         Int      @id @default(autoincrement())
+  userId     Int      @map("user_id")
+  filename   String   @db.VarChar(500)
+  url        String   @db.Text
+  size       Int
+  mimeType   String   @map("mime_type") @db.VarChar(100)
+  entityType String   @map("entity_type") @db.VarChar(50)
+  entityId   Int      @map("entity_id")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([entityType, entityId])
+  @@map("attachments")
 }
 
 // ============================

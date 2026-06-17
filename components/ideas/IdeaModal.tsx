@@ -2,7 +2,7 @@
 
 import { useActionState, useEffect, useState } from 'react'
 import { createIdea, updateIdea } from '@/app/actions/ideas'
-import RichTextEditor from '@/components/tasks/RichTextEditor'
+import EditorWithAttachments from '@/components/editor/EditorWithAttachments'
 
 export type IdeaItem = {
   id: number
@@ -193,7 +193,13 @@ export default function IdeaModal({ onClose, idea, categories, projects, resourc
                 <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block">내용</label>
                 <span className={`px-2 py-0.5 rounded-lg text-[10px] font-bold ${priorityBadge.cls}`}>{priorityBadge.label}</span>
               </div>
-              <RichTextEditor name="content" defaultValue={idea?.content ?? ''} placeholder="아이디어를 자유롭게 설명해보세요." />
+              <EditorWithAttachments
+                name="content"
+                entityType="idea"
+                entityId={idea?.id}
+                defaultValue={idea?.content ?? ''}
+                placeholder="아이디어를 자유롭게 설명해보세요."
+              />
             </div>
 
             <div>

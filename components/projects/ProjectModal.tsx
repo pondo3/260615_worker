@@ -2,7 +2,7 @@
 
 import { useActionState, useEffect, useState } from 'react'
 import { createProject, updateProject } from '@/app/actions/projects'
-import RichTextEditor from '@/components/tasks/RichTextEditor'
+import EditorWithAttachments from '@/components/editor/EditorWithAttachments'
 
 type Project = {
   id: number
@@ -110,10 +110,12 @@ export default function ProjectModal({ onClose, project }: Props) {
                   {errors.title && <p className="text-xs text-red-500 mt-1">{errors.title[0]}</p>}
                 </div>
                 <div className="border border-gray-200 dark:border-gray-700 rounded-xl overflow-hidden">
-                  <RichTextEditor
+                  <EditorWithAttachments
                     name="description"
+                    entityType="project"
+                    entityId={project?.id}
                     defaultValue={project?.description ?? ''}
-                    placeholder="프로젝트 목적, 배경, 상세 내용을 자유롭게 적어보세요 (이미지 붙여넣기 가능)"
+                    placeholder="프로젝트 목적, 배경, 상세 내용을 자유롭게 적어보세요"
                   />
                 </div>
               </div>

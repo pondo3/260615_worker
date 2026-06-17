@@ -1,8 +1,10 @@
-'use server'
+﻿'use server'
 
 import { revalidatePath } from 'next/cache'
 import { prisma } from '@/lib/prisma'
 import { verifySession } from '@/lib/dal'
+import { syncAttachments } from './attachments'
+import { parseAttachmentsFromFormData } from '@/lib/parseAttachments'
 
 export type ProjectFormState =
   | { success: true }
@@ -27,7 +29,7 @@ export async function createProject(state: ProjectFormState, formData: FormData)
 
   if (!f.title) return { errors: { title: ['제목을 입력하세요.'] } }
 
-  await prisma.project.create({
+  const project = await prisma.project.create({
     data: {
       userId: session.userId,
       title: f.title,
@@ -40,6 +42,7 @@ export async function createProject(state: ProjectFormState, formData: FormData)
     },
   })
 
+  await syncAttachments('project', project.id, session.userId, parseAttachmentsFromFormData(formData)).catch(() => {})
   revalidatePath('/projects')
   return { success: true }
 }
@@ -67,6 +70,7 @@ export async function updateProject(state: ProjectFormState, formData: FormData)
     },
   })
 
+  await syncAttachments('project', id, session.userId, parseAttachmentsFromFormData(formData)).catch(() => {})
   revalidatePath('/projects')
   return { success: true }
 }
@@ -78,3 +82,4 @@ export async function deleteProject(id: number) {
   await prisma.project.delete({ where: { id } })
   revalidatePath('/projects')
 }
+

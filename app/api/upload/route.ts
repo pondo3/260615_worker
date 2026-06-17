@@ -1,20 +1,50 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { writeFile } from 'fs/promises'
-import path from 'path'
+import { put, del } from '@vercel/blob'
 import { randomUUID } from 'crypto'
+import { verifySession } from '@/lib/dal'
+
+const MAX_SIZE = 20 * 1024 * 1024 // 20MB
 
 export async function POST(req: NextRequest) {
-  const formData = await req.formData()
-  const file = formData.get('file') as File | null
-  if (!file) return NextResponse.json({ error: 'No file' }, { status: 400 })
+  try {
+    await verifySession()
 
-  const bytes = await file.arrayBuffer()
-  const buffer = Buffer.from(bytes)
+    const formData = await req.formData()
+    const file = formData.get('file') as File | null
+    if (!file) return NextResponse.json({ error: 'No file' }, { status: 400 })
 
-  const ext = file.name.split('.').pop() ?? 'png'
-  const filename = `${randomUUID()}.${ext}`
-  const uploadDir = path.join(process.cwd(), 'public', 'uploads')
-  await writeFile(path.join(uploadDir, filename), buffer)
+    if (file.size > MAX_SIZE) {
+      return NextResponse.json({ error: '파일 크기는 20MB를 초과할 수 없습니다.' }, { status: 400 })
+    }
 
-  return NextResponse.json({ url: `/uploads/${filename}` })
+    const ext = file.name.split('.').pop() ?? ''
+    const uniqueName = `uploads/${randomUUID()}${ext ? '.' + ext : ''}`
+
+    const blob = await put(uniqueName, file, {
+      access: 'public',
+      contentType: file.type || 'application/octet-stream',
+    })
+
+    return NextResponse.json({
+      url: blob.url,
+      filename: file.name,
+      size: file.size,
+      mimeType: file.type || 'application/octet-stream',
+    })
+  } catch (err) {
+    const message = err instanceof Error ? err.message : '파일 업로드에 실패했습니다.'
+    return NextResponse.json({ error: message }, { status: 500 })
+  }
+}
+
+export async function DELETE(req: NextRequest) {
+  try {
+    await verifySession()
+    const url = new URL(req.url).searchParams.get('url')
+    if (!url) return NextResponse.json({ error: 'Missing url' }, { status: 400 })
+    await del(url)
+    return NextResponse.json({ success: true })
+  } catch {
+    return NextResponse.json({ error: 'Delete failed' }, { status: 500 })
+  }
 }

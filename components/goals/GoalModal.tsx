@@ -2,7 +2,7 @@
 
 import { useActionState, useEffect, useState } from 'react'
 import { createGoal, updateGoal } from '@/app/actions/goals'
-import RichTextEditor from '@/components/tasks/RichTextEditor'
+import EditorWithAttachments from '@/components/editor/EditorWithAttachments'
 
 type Goal = {
   id: number
@@ -163,10 +163,12 @@ export default function GoalModal({ onClose, goal }: Props) {
                   {errors.title && <p className="text-xs text-red-500 mt-1">{errors.title[0]}</p>}
                 </div>
                 <div className="border border-gray-200 dark:border-gray-700 rounded-xl overflow-hidden">
-                  <RichTextEditor
+                  <EditorWithAttachments
                     name="description"
+                    entityType="goal"
+                    entityId={goal?.id}
                     defaultValue={goal?.description ?? ''}
-                    placeholder="목표 상세 내용을 입력하세요 (이미지 붙여넣기 가능)"
+                    placeholder="목표 상세 내용을 입력하세요"
                   />
                 </div>
               </div>

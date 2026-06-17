@@ -1,8 +1,10 @@
-'use server'
+﻿'use server'
 
 import { revalidatePath } from 'next/cache'
 import { prisma } from '@/lib/prisma'
 import { verifySession } from '@/lib/dal'
+import { syncAttachments } from './attachments'
+import { parseAttachmentsFromFormData } from '@/lib/parseAttachments'
 
 export type GoalFormState =
   | { success: true }
@@ -29,7 +31,7 @@ export async function createGoal(state: GoalFormState, formData: FormData): Prom
   if (!f.title) return { errors: { title: ['제목을 입력하세요.'] } }
   if (!f.startDate) return { errors: { startDate: ['시작일을 선택하세요.'] } }
 
-  await prisma.goal.create({
+  const goal = await prisma.goal.create({
     data: {
       userId: session.userId,
       title: f.title,
@@ -43,6 +45,7 @@ export async function createGoal(state: GoalFormState, formData: FormData): Prom
     },
   })
 
+  await syncAttachments('goal', goal.id, session.userId, parseAttachmentsFromFormData(formData)).catch(() => {})
   revalidatePath('/goals')
   return { success: true }
 }
@@ -72,6 +75,7 @@ export async function updateGoal(state: GoalFormState, formData: FormData): Prom
     },
   })
 
+  await syncAttachments('goal', id, session.userId, parseAttachmentsFromFormData(formData)).catch(() => {})
   revalidatePath('/goals')
   return { success: true }
 }
@@ -83,3 +87,4 @@ export async function deleteGoal(id: number) {
   await prisma.goal.delete({ where: { id } })
   revalidatePath('/goals')
 }
+

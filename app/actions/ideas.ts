@@ -1,8 +1,10 @@
-'use server'
+﻿'use server'
 
 import { revalidatePath } from 'next/cache'
 import { prisma } from '@/lib/prisma'
 import { verifySession } from '@/lib/dal'
+import { syncAttachments } from './attachments'
+import { parseAttachmentsFromFormData } from '@/lib/parseAttachments'
 
 export type IdeaFormState =
   | { success: true }
@@ -197,6 +199,7 @@ export async function createIdea(state: IdeaFormState, formData: FormData): Prom
     await syncIdeaRelatedLinks(created.id, relatedLinks)
   }
 
+  await syncAttachments('idea', created.id, session.userId, parseAttachmentsFromFormData(formData)).catch(() => {})
   revalidatePath('/ideas')
   return { success: true }
 }
@@ -231,6 +234,7 @@ export async function updateIdea(state: IdeaFormState, formData: FormData): Prom
     },
   })
 
+  await syncAttachments('idea', id, session.userId, parseAttachmentsFromFormData(formData)).catch(() => {})
   revalidatePath('/ideas')
   return { success: true }
 }
@@ -329,3 +333,4 @@ export async function convertIdeaToProject(id: number) {
   revalidatePath('/projects')
   return { success: true, projectId: project.id }
 }
+

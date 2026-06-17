@@ -2,7 +2,7 @@
 
 import { useActionState, useEffect, useState } from 'react'
 import { createTask, updateTask } from '@/app/actions/tasks'
-import RichTextEditor from './RichTextEditor'
+import EditorWithAttachments from '@/components/editor/EditorWithAttachments'
 import ChecklistInput, { type CheckItem } from './ChecklistInput'
 
 type Task = {
@@ -175,8 +175,13 @@ export default function TaskModal({ onClose, task, defaultDate, categories = [],
 
               <div>
                 <label className={labelCls}>내용</label>
-                <RichTextEditor name="description" defaultValue={task?.description ?? ''}
-                  placeholder="내용 입력 (이미지 붙여넣기 가능)" />
+                <EditorWithAttachments
+                  name="description"
+                  entityType="task"
+                  entityId={task?.id}
+                  defaultValue={task?.description ?? ''}
+                  placeholder="내용 입력"
+                />
               </div>
             </Section>
 
