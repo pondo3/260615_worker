@@ -2,6 +2,7 @@
 
 import { useState, useTransition, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import PageHeader from '@/components/ui/PageHeader'
 import {
   deleteIdea, quickAddIdea, toggleIdeaFavorite, updateIdeaStatus,
   convertIdeaToTask, convertIdeaToProject,
@@ -172,109 +173,94 @@ export default function IdeaListClient({ ideas, categories, projects, resources 
   const detailIdea = ideas.find((i) => i.id === detailId) ?? null
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
-      {/* ── 헤더 ── */}
-      <div className="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800">
-        <div className="px-6 py-5">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <h1 className="text-xl font-black text-gray-900 dark:text-white">아이디어 관리</h1>
-              <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
-                떠오른 아이디어와 나중에 할 것들을 모아두고, 할 일이나 프로젝트로 전환해보세요.
-              </p>
-            </div>
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => setShowCatManager(true)}
-                className="flex items-center gap-1.5 px-3 py-2 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300 text-xs font-semibold rounded-xl transition-colors"
-              >
-                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
-                </svg>
-                카테고리 관리
-              </button>
-              <button
-                onClick={openAdd}
-                className="flex items-center gap-2 px-4 py-2 bg-indigo-500 hover:bg-indigo-600 text-white text-sm font-bold rounded-xl transition-colors shadow-sm"
-              >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                </svg>
-                아이디어 등록
-              </button>
-            </div>
-          </div>
-
-          {/* 빠른 등록 */}
-          <div className="flex items-center gap-2 mb-4">
-            <input
-              value={quickAddText}
-              onChange={(e) => setQuickAddText(e.target.value)}
-              onKeyDown={(e) => { if (e.key === 'Enter') handleQuickAdd() }}
-              placeholder="떠오른 생각을 빠르게 입력하세요..."
-              className="flex-1 text-sm bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl px-3 py-2.5 text-gray-700 dark:text-gray-300 placeholder-gray-400 dark:placeholder-gray-600 outline-none focus:border-indigo-400 transition-colors"
-            />
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-950 p-8">
+      <PageHeader
+        title="아이디어"
+        description="떠오른 아이디어와 나중에 할 것들을 모아두고, 할 일이나 프로젝트로 전환해보세요"
+        accent="indigo"
+        stats={[
+          { label: '전체', value: total },
+          { label: '검토 중', value: reviewing },
+          { label: '진행 중', value: inProgress },
+          { label: '완료', value: done },
+          { label: '즐겨찾기', value: favorites },
+        ]}
+        actions={
+          <>
             <button
-              onClick={handleQuickAdd}
-              disabled={!quickAddText.trim()}
-              className="px-4 py-2.5 rounded-xl bg-gray-800 dark:bg-gray-200 text-white dark:text-gray-900 text-xs font-bold hover:opacity-90 transition-opacity disabled:opacity-40"
+              onClick={() => setShowCatManager(true)}
+              className="flex items-center gap-1.5 px-3 py-2 bg-white/10 hover:bg-white/20 text-white/80 text-xs font-semibold rounded-xl transition-colors"
             >
-              빠른 추가
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
+              </svg>
+              카테고리 관리
             </button>
-          </div>
-
-          {/* 통계 카드 */}
-          <div className="grid grid-cols-5 gap-2 sm:gap-3">
-            {[
-              { label: '전체', value: total, color: 'text-gray-800 dark:text-gray-200' },
-              { label: '검토 중', value: reviewing, color: 'text-blue-600 dark:text-blue-400' },
-              { label: '진행 중', value: inProgress, color: 'text-amber-600 dark:text-amber-400' },
-              { label: '완료', value: done, color: 'text-emerald-600 dark:text-emerald-400' },
-              { label: '즐겨찾기', value: favorites, color: 'text-amber-500 dark:text-amber-400' },
-            ].map((s) => (
-              <div key={s.label} className="bg-gray-50 dark:bg-gray-800/50 rounded-xl p-2.5 text-center">
-                <div className={`text-xl font-black ${s.color}`}>{s.value}</div>
-                <div className="text-[10px] text-gray-400 dark:text-gray-500 mt-0.5 truncate">{s.label}</div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* ── 카테고리 탭 ── */}
-        <div className="px-4 flex items-center gap-1.5 overflow-x-auto pb-3 scrollbar-none">
-          <button
-            onClick={() => setActiveCategory(null)}
-            className={`flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
-              activeCategory === null
-                ? 'bg-gray-900 dark:bg-white text-white dark:text-gray-900'
-                : 'text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800'
-            }`}
-          >
-            전체
-            <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${activeCategory === null ? 'bg-white/20 dark:bg-black/20' : 'bg-gray-100 dark:bg-gray-800 text-gray-400'}`}>
-              {total}
-            </span>
-          </button>
-          {sortedCategories.map((cat) => (
             <button
-              key={cat.id}
-              onClick={() => setActiveCategory(activeCategory === cat.id ? null : cat.id)}
-              className={`flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
-                activeCategory === cat.id ? 'text-white' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800'
-              }`}
-              style={activeCategory === cat.id ? { backgroundColor: cat.color } : {}}
+              onClick={openAdd}
+              className="flex items-center gap-2 px-4 py-2 bg-white/20 hover:bg-white/30 text-white text-sm font-bold rounded-xl transition-colors shadow-lg"
             >
-              <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: cat.color }} />
-              {cat.name}
-              <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${activeCategory === cat.id ? 'bg-white/20' : 'bg-gray-100 dark:bg-gray-800 text-gray-400 dark:text-gray-500'}`}>
-                {catCount[cat.id] ?? 0}
-              </span>
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+              </svg>
+              아이디어 등록
             </button>
-          ))}
-        </div>
+          </>
+        }
+      />
+
+      {/* 빠른 등록 */}
+      <div className="flex items-center gap-2 mb-4">
+        <input
+          value={quickAddText}
+          onChange={(e) => setQuickAddText(e.target.value)}
+          onKeyDown={(e) => { if (e.key === 'Enter') handleQuickAdd() }}
+          placeholder="떠오른 생각을 빠르게 입력하세요..."
+          className="flex-1 text-sm bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl px-3 py-2.5 text-gray-700 dark:text-gray-300 placeholder-gray-400 dark:placeholder-gray-600 outline-none focus:border-indigo-400 transition-colors"
+        />
+        <button
+          onClick={handleQuickAdd}
+          disabled={!quickAddText.trim()}
+          className="px-4 py-2.5 rounded-xl bg-gray-800 dark:bg-gray-200 text-white dark:text-gray-900 text-xs font-bold hover:opacity-90 transition-opacity disabled:opacity-40"
+        >
+          빠른 추가
+        </button>
       </div>
 
-      <div className="px-4 sm:px-6 py-4 space-y-3">
+      {/* ── 카테고리 탭 ── */}
+      <div className="flex items-center gap-1.5 overflow-x-auto pb-3 mb-4 scrollbar-none">
+        <button
+          onClick={() => setActiveCategory(null)}
+          className={`flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
+            activeCategory === null
+              ? 'bg-gray-900 dark:bg-white text-white dark:text-gray-900'
+              : 'bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800'
+          }`}
+        >
+          전체
+          <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${activeCategory === null ? 'bg-white/20 dark:bg-black/20' : 'bg-gray-100 dark:bg-gray-800 text-gray-400'}`}>
+            {total}
+          </span>
+        </button>
+        {sortedCategories.map((cat) => (
+          <button
+            key={cat.id}
+            onClick={() => setActiveCategory(activeCategory === cat.id ? null : cat.id)}
+            className={`flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
+              activeCategory === cat.id ? 'text-white' : 'text-gray-600 dark:text-gray-400 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-800'
+            }`}
+            style={activeCategory === cat.id ? { backgroundColor: cat.color } : {}}
+          >
+            <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: cat.color }} />
+            {cat.name}
+            <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${activeCategory === cat.id ? 'bg-white/20' : 'bg-gray-100 dark:bg-gray-800 text-gray-400 dark:text-gray-500'}`}>
+              {catCount[cat.id] ?? 0}
+            </span>
+          </button>
+        ))}
+      </div>
+
+      <div className="space-y-3">
         {/* 검색 + 정렬 + 뷰 토글 */}
         <div className="flex items-center gap-2 flex-wrap">
           <div className="flex-1 min-w-48 relative">

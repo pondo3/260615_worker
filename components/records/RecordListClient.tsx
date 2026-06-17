@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { deleteRecord } from '@/app/actions/records'
 import RecordModal, { type RecordForEdit } from './RecordModal'
+import PageHeader from '@/components/ui/PageHeader'
 
 type VideoLink = {
   id?: number
@@ -148,43 +149,46 @@ export default function RecordListClient({ records }: { records: RecordItem[] })
   const handleCloseModal = () => { setShowModal(false); setEditingRecord(null) }
 
   return (
-    <div className="h-full flex flex-col">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-4 flex-shrink-0">
-        <div>
-          <h1 className="text-xl font-bold text-gray-900 dark:text-white">나의 기록</h1>
-          <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">총 {records.length}개의 기록</p>
-        </div>
-        <div className="flex items-center gap-2">
-          {/* View Toggle */}
-          <div className="flex items-center gap-0.5 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl p-1">
-            <button onClick={() => changeView('list')}
-              className={`p-1.5 rounded-lg transition-colors ${view === 'list' ? 'bg-gray-900 dark:bg-white text-white dark:text-gray-900' : 'text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'}`}
-              title="리스트 뷰">
-              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+    <div className="h-full flex flex-col p-8">
+      <PageHeader
+        title="나의 기록"
+        description="일기, 업무 기록, 영상 기록 등 일상을 기록합니다"
+        accent="amber"
+        stats={[
+          { label: '전체', value: records.length },
+          { label: '이번 달', value: records.filter((r) => r.date >= new Date().toISOString().slice(0, 7)).length },
+        ]}
+        actions={
+          <>
+            <div className="flex items-center gap-0.5 bg-white/10 rounded-xl p-1">
+              <button onClick={() => changeView('list')}
+                className={`p-1.5 rounded-lg transition-colors ${view === 'list' ? 'bg-white/30 text-white' : 'text-white/60 hover:text-white hover:bg-white/10'}`}
+                title="리스트 뷰">
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                </svg>
+              </button>
+              <button onClick={() => changeView('card')}
+                className={`p-1.5 rounded-lg transition-colors ${view === 'card' ? 'bg-white/30 text-white' : 'text-white/60 hover:text-white hover:bg-white/10'}`}
+                title="카드 뷰">
+                <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24">
+                  <rect x="3" y="3" width="7" height="7" rx="1" /><rect x="14" y="3" width="7" height="7" rx="1" />
+                  <rect x="3" y="14" width="7" height="7" rx="1" /><rect x="14" y="14" width="7" height="7" rx="1" />
+                </svg>
+              </button>
+            </div>
+            <button
+              onClick={() => { setEditingRecord(null); setShowModal(true) }}
+              className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/20 hover:bg-white/30 text-white text-sm font-bold transition-colors shadow-lg"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
               </svg>
+              기록 추가
             </button>
-            <button onClick={() => changeView('card')}
-              className={`p-1.5 rounded-lg transition-colors ${view === 'card' ? 'bg-gray-900 dark:bg-white text-white dark:text-gray-900' : 'text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'}`}
-              title="카드 뷰">
-              <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24">
-                <rect x="3" y="3" width="7" height="7" rx="1" /><rect x="14" y="3" width="7" height="7" rx="1" />
-                <rect x="3" y="14" width="7" height="7" rx="1" /><rect x="14" y="14" width="7" height="7" rx="1" />
-              </svg>
-            </button>
-          </div>
-          <button
-            onClick={() => { setEditingRecord(null); setShowModal(true) }}
-            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-sm font-semibold transition-colors"
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-            </svg>
-            기록 추가
-          </button>
-        </div>
-      </div>
+          </>
+        }
+      />
 
       {/* Search + Type Filter */}
       <div className="space-y-2 mb-4 flex-shrink-0">

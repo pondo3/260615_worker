@@ -7,6 +7,7 @@ import { refreshYoutubeData } from '@/app/actions/youtube'
 import { createResourceFolder, updateResourceFolder, deleteResourceFolder, type FolderNode } from '@/app/actions/resourceFolders'
 import ResourceModal, { ResourceItem } from './ResourceModal'
 import CategoryManager from './CategoryManager'
+import PageHeader from '@/components/ui/PageHeader'
 
 type Resource = {
   id: number
@@ -373,93 +374,78 @@ export default function ResourceListClient({ resources, categories, projects, te
   const modalCats = categories.map((c) => ({ id: c.id, name: c.name, color: c.color }))
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
-      {/* ── 헤더 ── */}
-      <div className="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800">
-        <div className="px-6 py-5">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <h1 className="text-xl font-black text-gray-900 dark:text-white">자료 보관함</h1>
-              <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
-                유튜브, 강의, 디자인, 개발 자료 등 참고 링크를 카테고리별로 저장하고 관리합니다.
-              </p>
-            </div>
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => setShowCatManager(true)}
-                className="flex items-center gap-1.5 px-3 py-2 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300 text-xs font-semibold rounded-xl transition-colors"
-              >
-                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
-                </svg>
-                카테고리 관리
-              </button>
-              <button
-                onClick={openAdd}
-                className="flex items-center gap-2 px-4 py-2 bg-teal-500 hover:bg-teal-600 text-white text-sm font-bold rounded-xl transition-colors shadow-sm"
-              >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                </svg>
-                자료 등록
-              </button>
-            </div>
-          </div>
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-950 p-8 pb-4">
+      <PageHeader
+        title="자료 보관함"
+        description="유튜브, 강의, 디자인, 개발 자료 등 참고 링크를 카테고리별로 저장하고 관리합니다"
+        accent="teal"
+        stats={[
+          { label: '전체', value: total },
+          { label: '완료', value: done },
+          { label: '확인 전', value: unchecked },
+          { label: '보류', value: onhold },
+          { label: '즐겨찾기', value: favorites },
+        ]}
+        actions={
+          <>
+            <button
+              onClick={() => setShowCatManager(true)}
+              className="flex items-center gap-1.5 px-3 py-2 bg-white/10 hover:bg-white/20 text-white/80 text-xs font-semibold rounded-xl transition-colors"
+            >
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
+              </svg>
+              카테고리 관리
+            </button>
+            <button
+              onClick={openAdd}
+              className="flex items-center gap-2 px-4 py-2 bg-white/20 hover:bg-white/30 text-white text-sm font-bold rounded-xl transition-colors shadow-lg"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+              </svg>
+              자료 등록
+            </button>
+          </>
+        }
+      />
 
-          {/* 통계 카드 */}
-          <div className="grid grid-cols-5 gap-2 sm:gap-3">
-            {[
-              { label: '전체', value: total, color: 'text-gray-800 dark:text-gray-200' },
-              { label: '완료', value: done, color: 'text-emerald-600 dark:text-emerald-400' },
-              { label: '확인 전', value: unchecked, color: 'text-gray-500 dark:text-gray-400' },
-              { label: '보류', value: onhold, color: 'text-amber-600 dark:text-amber-400' },
-              { label: '즐겨찾기', value: favorites, color: 'text-amber-500 dark:text-amber-400' },
-            ].map((s) => (
-              <div key={s.label} className="bg-gray-50 dark:bg-gray-800/50 rounded-xl p-2.5 text-center">
-                <div className={`text-xl font-black ${s.color}`}>{s.value}</div>
-                <div className="text-[10px] text-gray-400 dark:text-gray-500 mt-0.5 truncate">{s.label}</div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* ── 카테고리 탭 ── */}
-        <div className="px-4 flex items-center gap-1.5 overflow-x-auto pb-3 scrollbar-none">
+      {/* ── 카테고리 탭 ── */}
+      <div className="flex items-center gap-1.5 overflow-x-auto pb-3 mb-4 scrollbar-none">
+        <button
+          onClick={() => setActiveCategory(null)}
+          className={`flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
+            activeCategory === null
+              ? 'bg-gray-900 dark:bg-white text-white dark:text-gray-900'
+              : 'bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800'
+          }`}
+        >
+          전체
+          <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${activeCategory === null ? 'bg-white/20 dark:bg-black/20' : 'bg-gray-100 dark:bg-gray-800 text-gray-400'}`}>
+            {total}
+          </span>
+        </button>
+        {sortedCategories.map((cat) => (
           <button
-            onClick={() => setActiveCategory(null)}
+            key={cat.id}
+            onClick={() => setActiveCategory(activeCategory === cat.id ? null : cat.id)}
             className={`flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
-              activeCategory === null
-                ? 'bg-gray-900 dark:bg-white text-white dark:text-gray-900'
-                : 'text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800'
+              activeCategory === cat.id ? 'text-white' : 'text-gray-600 dark:text-gray-400 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-800'
             }`}
+            style={activeCategory === cat.id ? { backgroundColor: cat.color } : {}}
           >
-            전체
-            <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${activeCategory === null ? 'bg-white/20 dark:bg-black/20' : 'bg-gray-100 dark:bg-gray-800 text-gray-400'}`}>
-              {total}
+            <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: cat.color }} />
+            {cat.name}
+            <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${activeCategory === cat.id ? 'bg-white/20' : 'bg-gray-100 dark:bg-gray-800 text-gray-400 dark:text-gray-500'}`}>
+              {catCount[cat.id] ?? 0}
             </span>
           </button>
-          {sortedCategories.map((cat) => (
-            <button
-              key={cat.id}
-              onClick={() => setActiveCategory(activeCategory === cat.id ? null : cat.id)}
-              className={`flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
-                activeCategory === cat.id ? 'text-white' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800'
-              }`}
-              style={activeCategory === cat.id ? { backgroundColor: cat.color } : {}}
-            >
-              <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: cat.color }} />
-              {cat.name}
-              <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${activeCategory === cat.id ? 'bg-white/20' : 'bg-gray-100 dark:bg-gray-800 text-gray-400 dark:text-gray-500'}`}>
-                {catCount[cat.id] ?? 0}
-              </span>
-            </button>
-          ))}
-        </div>
+        ))}
       </div>
 
       <div className="flex">
         {/* ── 좌측 폴더 트리 ── */}
-        <div className="w-52 flex-shrink-0 bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-800 min-h-[calc(100vh-220px)]">
+        <div className="w-52 flex-shrink-0 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl mr-4 self-start">
           <div className="p-3 space-y-0.5">
             {([
               { key: 'all' as const, label: '전체 자료', icon: '◎', count: resources.length },
@@ -498,7 +484,7 @@ export default function ResourceListClient({ resources, categories, projects, te
         </div>
 
         {/* ── 우측 콘텐츠 ── */}
-        <div className="flex-1 px-4 sm:px-6 py-4 space-y-3">
+        <div className="flex-1 space-y-3">
         {/* 검색 + 정렬 + 뷰 토글 */}
         <div className="flex items-center gap-2 flex-wrap">
           <div className="flex-1 min-w-48 relative">
