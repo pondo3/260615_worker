@@ -4,10 +4,12 @@ import { useState, useTransition, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { deleteResource, toggleFavorite } from '@/app/actions/resources'
 import { refreshYoutubeData } from '@/app/actions/youtube'
-import { createResourceFolder, updateResourceFolder, deleteResourceFolder, type FolderNode } from '@/app/actions/resourceFolders'
+import { createResourceFolder, updateResourceFolder, deleteResourceFolder, moveResourcesToFolder, type FolderNode } from '@/app/actions/resourceFolders'
+import { recordResourcesOpen } from '@/app/actions/resources'
 import ResourceModal, { ResourceItem } from './ResourceModal'
 import CategoryManager from './CategoryManager'
 import PageHeader from '@/components/ui/PageHeader'
+import FolderMoveModal from './FolderMoveModal'
 
 type Resource = {
   id: number
@@ -259,6 +261,13 @@ export default function ResourceListClient({ resources, categories, projects, te
   const [folderDialogName, setFolderDialogName] = useState('')
   const [folderDeleteTarget, setFolderDeleteTarget] = useState<{ id: number; name: string } | null>(null)
 
+  // Bulk selection & open-all state
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set())
+  const [showOpenAllDialog, setShowOpenAllDialog] = useState(false)
+  const [includeSubfolders, setIncludeSubfolders] = useState(false)
+  const [showMoveModal, setShowMoveModal] = useState(false)
+  const [toast, setToast] = useState<string | null>(null)
+
   async function handleFolderSubmit() {
     if (!folderDialog) return
     if (folderDialog.mode === 'create') {
@@ -281,6 +290,86 @@ export default function ResourceListClient({ resources, categories, projects, te
     } else {
       alert(res.error)
     }
+  }
+
+  // ─── 폴더 트리 헬퍼 ───────────────────────────
+  function findFolderNode(id: number, nodes: FolderNode[]): FolderNode | null {
+    for (const n of nodes) {
+      if (n.id === id) return n
+      const found = findFolderNode(id, n.children)
+      if (found) return found
+    }
+    return null
+  }
+
+  function getFolderDescendantIds(folderId: number): number[] {
+    const node = findFolderNode(folderId, folders)
+    if (!node) return [folderId]
+    const ids: number[] = [folderId]
+    function collect(n: FolderNode) {
+      for (const c of n.children) { ids.push(c.id); collect(c) }
+    }
+    collect(node)
+    return ids
+  }
+
+  function getOpenableLinks(withSubfolders: boolean): typeof resources {
+    return resources.filter((r) => {
+      if (!r.url || r.status === '폐기') return false
+      if (typeof selectedFolder === 'number') {
+        const ids = withSubfolders ? getFolderDescendantIds(selectedFolder) : [selectedFolder]
+        return ids.includes(r.folderId ?? -1)
+      }
+      if (selectedFolder === 'favorites') return r.isFavorite
+      if (selectedFolder === 'recent') {
+        const cutoff = new Date(Date.now() - 7 * 86400000).toISOString().split('T')[0]
+        return r.registeredAt >= cutoff
+      }
+      if (selectedFolder === 'unassigned') return r.folderId === null
+      return r.url.length > 0 // 'all'
+    })
+  }
+
+  // ─── 선택 핸들러 ───────────────────────────────
+  function toggleSelect(id: number) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id); else next.add(id)
+      return next
+    })
+  }
+
+  function toggleAll() {
+    if (selectedIds.size === filtered.length) setSelectedIds(new Set())
+    else setSelectedIds(new Set(filtered.map((r) => r.id)))
+  }
+
+  // ─── 링크 전체 열기 ────────────────────────────
+  function handleOpenAll() {
+    const links = getOpenableLinks(includeSubfolders)
+    for (const r of links) {
+      try { window.open(r.url, '_blank', 'noopener,noreferrer') } catch {}
+    }
+    recordResourcesOpen(links.map((r) => r.id))
+    setShowOpenAllDialog(false)
+    showToast(`${links.length}개 링크를 새 탭으로 열었습니다.`)
+  }
+
+  // ─── 일괄 이동 ─────────────────────────────────
+  async function handleBulkMove(folderId: number | null, folderName: string) {
+    const ids = Array.from(selectedIds)
+    const res = await moveResourcesToFolder(ids, folderId)
+    if (res.success) {
+      setSelectedIds(new Set())
+      setShowMoveModal(false)
+      router.refresh()
+      showToast(`${ids.length}개 자료를 ${folderName === '미분류' ? '미분류로' : `'${folderName}' 폴더로`} 이동했습니다.`)
+    }
+  }
+
+  function showToast(text: string) {
+    setToast(text)
+    setTimeout(() => setToast(null), 3500)
   }
 
   // 통계
@@ -372,6 +461,11 @@ export default function ResourceListClient({ resources, categories, projects, te
 
   const sortedCategories = [...categories].sort((a, b) => a.sortOrder - b.sortOrder || a.name.localeCompare(b.name, 'ko'))
   const modalCats = categories.map((c) => ({ id: c.id, name: c.name, color: c.color }))
+
+  const selectedFolderHasChildren = typeof selectedFolder === 'number' && (() => {
+    const node = findFolderNode(selectedFolder, folders)
+    return node ? node.children.length > 0 : false
+  })()
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-950 p-8 pb-4">
@@ -543,7 +637,44 @@ export default function ResourceListClient({ resources, categories, projects, te
             </button>
           )}
           <span className="text-xs text-gray-400 dark:text-gray-500 ml-auto">{filtered.length}개</span>
+          {selectedFolder !== 'all' && filtered.filter((r) => r.status !== '폐기').length > 0 && (
+            <button
+              onClick={() => { setIncludeSubfolders(false); setShowOpenAllDialog(true) }}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-white dark:bg-gray-900 border border-teal-300 dark:border-teal-700 rounded-xl text-xs font-semibold text-teal-600 dark:text-teal-400 hover:bg-teal-50 dark:hover:bg-teal-900/20 transition-colors"
+            >
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+              </svg>
+              링크 전체 열기
+              <span className="px-1.5 py-0.5 rounded-full bg-teal-100 dark:bg-teal-900/40 text-[10px] font-bold">
+                {filtered.filter((r) => r.status !== '폐기').length}
+              </span>
+            </button>
+          )}
         </div>
+
+        {/* ── 선택 액션바 ── */}
+        {selectedIds.size > 0 && (
+          <div className="flex items-center gap-3 px-4 py-2.5 bg-teal-50 dark:bg-teal-900/20 rounded-xl border border-teal-200 dark:border-teal-800">
+            <span className="text-sm font-semibold text-teal-700 dark:text-teal-300">{selectedIds.size}개 선택됨</span>
+            <div className="h-4 w-px bg-teal-200 dark:bg-teal-700" />
+            <button
+              onClick={() => setShowMoveModal(true)}
+              className="flex items-center gap-1.5 text-sm font-semibold text-teal-600 dark:text-teal-400 hover:text-teal-700 dark:hover:text-teal-300 transition-colors"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+              </svg>
+              폴더로 이동
+            </button>
+            <button
+              onClick={() => setSelectedIds(new Set())}
+              className="ml-auto text-xs text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
+            >
+              선택 해제
+            </button>
+          </div>
+        )}
 
         {/* ── 카드 뷰 ── */}
         {view === 'card' && (
@@ -702,6 +833,15 @@ export default function ResourceListClient({ resources, categories, projects, te
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b border-gray-100 dark:border-gray-800">
+                      <th className="pl-3 pr-1 py-3 w-10">
+                        <input
+                          type="checkbox"
+                          checked={filtered.length > 0 && selectedIds.size === filtered.length}
+                          ref={(el) => { if (el) el.indeterminate = selectedIds.size > 0 && selectedIds.size < filtered.length }}
+                          onChange={toggleAll}
+                          className="w-4 h-4 rounded border-gray-300 dark:border-gray-600 text-teal-500 focus:ring-teal-400 cursor-pointer"
+                        />
+                      </th>
                       {['', '제목', '카테고리', '플랫폼', '유형', '중요도', '상태', '등록일', ''].map((h, i) => (
                         <th key={i} className="px-3 py-3 text-left text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wide whitespace-nowrap">
                           {h}
@@ -711,7 +851,17 @@ export default function ResourceListClient({ resources, categories, projects, te
                   </thead>
                   <tbody className="divide-y divide-gray-50 dark:divide-gray-800">
                     {filtered.map((r) => (
-                      <tr key={r.id} className="hover:bg-gray-50 dark:hover:bg-gray-800/30 transition-colors group">
+                      <tr key={r.id} className={`hover:bg-gray-50 dark:hover:bg-gray-800/30 transition-colors group ${selectedIds.has(r.id) ? 'bg-teal-50/50 dark:bg-teal-900/10' : ''}`}>
+                        {/* 체크박스 */}
+                        <td className="pl-3 pr-1 py-2 w-10">
+                          <input
+                            type="checkbox"
+                            checked={selectedIds.has(r.id)}
+                            onChange={() => toggleSelect(r.id)}
+                            onClick={(e) => e.stopPropagation()}
+                            className="w-4 h-4 rounded border-gray-300 dark:border-gray-600 text-teal-500 focus:ring-teal-400 cursor-pointer"
+                          />
+                        </td>
                         {/* 썸네일 */}
                         <td className="pl-3 py-2 w-16">
                           <ThumbnailBox r={r} size="sm" />
@@ -841,6 +991,83 @@ export default function ResourceListClient({ resources, categories, projects, te
         )}
         </div>{/* end flex-1 content */}
       </div>{/* end flex */}
+
+      {/* ── 링크 전체 열기 확인 ── */}
+      {showOpenAllDialog && (() => {
+        const currentLinks = getOpenableLinks(false)
+        const withSubLinks = selectedFolderHasChildren ? getOpenableLinks(true) : currentLinks
+        const linksToOpen = includeSubfolders ? withSubLinks : currentLinks
+        const extraCount = withSubLinks.length - currentLinks.length
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+            <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl p-6 w-full max-w-sm border border-gray-200 dark:border-gray-700">
+              <h3 className="text-base font-bold text-gray-900 dark:text-white mb-2">링크 전체 열기</h3>
+              {currentLinks.length === 0 ? (
+                <p className="text-sm text-gray-500 dark:text-gray-400 mb-5">이 폴더에는 열 수 있는 링크가 없습니다.</p>
+              ) : (
+                <>
+                  <p className="text-sm text-gray-600 dark:text-gray-300 mb-3">
+                    현재 폴더의 링크{' '}
+                    <span className="font-bold text-teal-600 dark:text-teal-400">{linksToOpen.length}개</span>를
+                    새 탭으로 엽니다.
+                  </p>
+                  {selectedFolderHasChildren && (
+                    <label className="flex items-center gap-2 mb-3 cursor-pointer text-sm text-gray-600 dark:text-gray-400">
+                      <input
+                        type="checkbox"
+                        checked={includeSubfolders}
+                        onChange={(e) => setIncludeSubfolders(e.target.checked)}
+                        className="w-4 h-4 rounded border-gray-300 text-teal-500 focus:ring-teal-400"
+                      />
+                      하위 폴더 링크까지 포함{extraCount > 0 && ` (+${extraCount}개)`}
+                    </label>
+                  )}
+                  {linksToOpen.length > 10 && (
+                    <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl p-3 mb-4">
+                      <p className="text-xs text-amber-700 dark:text-amber-300">
+                        링크가 {linksToOpen.length}개입니다. 브라우저 설정에 따라 팝업이 차단될 수 있습니다.
+                        차단되면 주소창의 팝업 허용을 클릭해주세요.
+                      </p>
+                    </div>
+                  )}
+                </>
+              )}
+              <div className="flex gap-2">
+                <button onClick={() => setShowOpenAllDialog(false)}
+                  className="flex-1 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 text-sm font-semibold text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
+                  취소
+                </button>
+                {currentLinks.length > 0 && (
+                  <button onClick={handleOpenAll}
+                    className="flex-1 py-2.5 rounded-xl bg-teal-500 text-sm font-bold text-white hover:bg-teal-600 transition-colors">
+                    링크 열기
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        )
+      })()}
+
+      {/* ── 폴더 이동 모달 ── */}
+      {showMoveModal && (
+        <FolderMoveModal
+          folders={folders}
+          selectedCount={selectedIds.size}
+          onMove={handleBulkMove}
+          onClose={() => setShowMoveModal(false)}
+        />
+      )}
+
+      {/* ── 토스트 ── */}
+      {toast && (
+        <div className="fixed bottom-6 right-6 z-[60] flex items-center gap-2 px-4 py-3 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-xl shadow-2xl text-sm font-semibold animate-in slide-in-from-bottom-4">
+          <svg className="w-4 h-4 text-teal-400 dark:text-teal-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+          </svg>
+          {toast}
+        </div>
+      )}
 
       {/* 폴더 만들기/이름변경 다이얼로그 */}
       {folderDialog !== null && (

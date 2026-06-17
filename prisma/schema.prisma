@@ -531,6 +531,8 @@ model ResourceLink {
   projectId          Int?      @map("project_id")
   testId             Int?      @map("test_id")
   folderId           Int?      @map("folder_id")
+  lastOpenedAt       DateTime? @map("last_opened_at")
+  openCount          Int       @default(0) @map("open_count")
   createdAt          DateTime  @default(now()) @map("created_at")
   updatedAt          DateTime  @updatedAt @map("updated_at")
 

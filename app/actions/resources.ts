@@ -127,6 +127,17 @@ export async function deleteCategory(id: number) {
   return { success: true }
 }
 
+// ─── 열람 기록 ─────────────────────────────────────────
+
+export async function recordResourcesOpen(ids: number[]): Promise<void> {
+  if (ids.length === 0) return
+  const session = await verifySession()
+  await prisma.resourceLink.updateMany({
+    where: { id: { in: ids }, userId: session.userId },
+    data: { lastOpenedAt: new Date(), openCount: { increment: 1 } },
+  })
+}
+
 // ─── 자료 액션 ─────────────────────────────────────────
 
 function extractFields(formData: FormData) {
