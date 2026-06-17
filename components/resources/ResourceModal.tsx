@@ -427,7 +427,7 @@ export default function ResourceModal({ onClose, resource, categories, projects,
 
   const errors = state && 'errors' in state ? state.errors : {}
   const showYtPanel = !isEdit
-    ? ytFetchStatus !== 'idle'
+    ? (thumbnailSource === 'youtube' || ytFetchStatus !== 'idle')
     : !!(ytVideoId || (thumbnailSource === 'youtube'))
 
   return (
@@ -530,10 +530,20 @@ export default function ResourceModal({ onClose, resource, categories, projects,
 
                 {showYtPanel && (
                   <div className="mt-2 rounded-xl border border-red-200 dark:border-red-800/50 bg-red-50 dark:bg-red-900/10 p-3">
+                    {!isEdit && ytFetchStatus === 'idle' && thumbnailUrl && (
+                      <img src={thumbnailUrl} alt="" className="w-24 h-16 object-cover rounded-lg"
+                        onError={(e) => { e.currentTarget.style.display = 'none' }} />
+                    )}
                     {!isEdit && ytFetchStatus === 'loading' && (
-                      <div className="flex items-center gap-2">
-                        <div className="w-3 h-3 border-2 border-red-400 border-t-transparent rounded-full animate-spin flex-shrink-0" />
-                        <p className="text-xs text-red-600 dark:text-red-400">유튜브 API 정보를 가져오는 중입니다...</p>
+                      <div className="flex items-start gap-3">
+                        {thumbnailUrl && (
+                          <img src={thumbnailUrl} alt="" className="w-24 h-16 object-cover rounded-lg flex-shrink-0"
+                            onError={(e) => { e.currentTarget.style.display = 'none' }} />
+                        )}
+                        <div className="flex items-center gap-2 pt-1">
+                          <div className="w-3 h-3 border-2 border-red-400 border-t-transparent rounded-full animate-spin flex-shrink-0" />
+                          <p className="text-xs text-red-600 dark:text-red-400">유튜브 정보를 가져오는 중...</p>
+                        </div>
                       </div>
                     )}
                     {!isEdit && ytFetchStatus === 'error' && (
