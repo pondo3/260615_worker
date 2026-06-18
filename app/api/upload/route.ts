@@ -39,7 +39,7 @@ export async function POST(req: NextRequest) {
     })
   } catch (err) {
     const message = err instanceof Error ? err.message : '파일 업로드에 실패했습니다.'
-    return NextResponse.json({ error: message }, { status: 500 })
+    return NextResponse.json({ error: `[v3] ${message}` }, { status: 500 })
   }
 }
 
