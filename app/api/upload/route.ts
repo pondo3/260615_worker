@@ -9,6 +9,11 @@ export async function POST(req: NextRequest) {
   try {
     await verifySession()
 
+    const token = process.env.PUBLIC_BLOB_READ_WRITE_TOKEN
+    if (!token) {
+      return NextResponse.json({ error: 'PUBLIC_BLOB_READ_WRITE_TOKEN 환경변수가 설정되지 않았습니다.' }, { status: 500 })
+    }
+
     const formData = await req.formData()
     const file = formData.get('file') as File | null
     if (!file) return NextResponse.json({ error: 'No file' }, { status: 400 })
@@ -23,6 +28,7 @@ export async function POST(req: NextRequest) {
     const blob = await put(uniqueName, file, {
       access: 'public',
       contentType: file.type || 'application/octet-stream',
+      token,
     })
 
     return NextResponse.json({
