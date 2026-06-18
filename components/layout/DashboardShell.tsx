@@ -266,6 +266,9 @@ export default function DashboardShell({ user, logoutAction, children }: {
   )
   const [favorites, setFavorites] = useState<string[]>([])
   const [favoritesOpen, setFavoritesOpen] = useState(true)
+  const [favEditMode, setFavEditMode] = useState(false)
+  const [dragSrcIdx, setDragSrcIdx] = useState<number | null>(null)
+  const [dragOverIdx, setDragOverIdx] = useState<number | null>(null)
   const pathname = usePathname()
 
   // localStorage에서 즐겨찾기 불러오기
@@ -282,8 +285,38 @@ export default function DashboardShell({ user, logoutAction, children }: {
     setFavorites((prev) => {
       const next = prev.includes(href) ? prev.filter((h) => h !== href) : [...prev, href]
       localStorage.setItem(FAVORITES_KEY, JSON.stringify(next))
+      if (next.length === 0) setFavEditMode(false)
       return next
     })
+  }
+
+  function handleDragStart(idx: number) {
+    setDragSrcIdx(idx)
+  }
+
+  function handleDragOver(e: React.DragEvent, idx: number) {
+    e.preventDefault()
+    if (dragOverIdx !== idx) setDragOverIdx(idx)
+  }
+
+  function handleDrop(idx: number) {
+    if (dragSrcIdx === null || dragSrcIdx === idx) {
+      setDragSrcIdx(null)
+      setDragOverIdx(null)
+      return
+    }
+    const next = [...favorites]
+    const [moved] = next.splice(dragSrcIdx, 1)
+    next.splice(idx, 0, moved)
+    setFavorites(next)
+    localStorage.setItem(FAVORITES_KEY, JSON.stringify(next))
+    setDragSrcIdx(null)
+    setDragOverIdx(null)
+  }
+
+  function handleDragEnd() {
+    setDragSrcIdx(null)
+    setDragOverIdx(null)
   }
 
   function toggleFavoritesOpen() {
@@ -363,39 +396,86 @@ export default function DashboardShell({ user, logoutAction, children }: {
           {/* 즐겨찾기 섹션 */}
           {!collapsed && (
             <div className="mb-1">
-              <button
-                onClick={toggleFavoritesOpen}
-                className="w-full flex items-center gap-2 px-3 py-2 rounded-xl transition-colors hover:bg-gray-50 dark:hover:bg-gray-800/60"
-              >
-                <svg
-                  className="w-4 h-4 flex-shrink-0 text-amber-400"
-                  fill="currentColor"
-                  viewBox="0 0 24 24"
+              {/* 헤더: 토글 + 편집 버튼 */}
+              <div className="flex items-center">
+                <button
+                  onClick={toggleFavoritesOpen}
+                  className="flex-1 flex items-center gap-2 px-3 py-2 rounded-xl transition-colors hover:bg-gray-50 dark:hover:bg-gray-800/60"
                 >
-                  <path d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
-                </svg>
-                <span className="flex-1 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">
-                  즐겨찾기
-                </span>
-                {/* 토글 스위치 */}
-                <div
-                  className={`w-8 h-4 rounded-full transition-colors flex-shrink-0 flex items-center px-0.5 ${
-                    favoritesOpen ? 'bg-amber-400' : 'bg-gray-200 dark:bg-gray-700'
-                  }`}
-                >
-                  <div className={`w-3 h-3 rounded-full bg-white shadow transition-transform ${
-                    favoritesOpen ? 'translate-x-4' : 'translate-x-0'
-                  }`} />
-                </div>
-              </button>
+                  <svg className="w-4 h-4 flex-shrink-0 text-amber-400" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
+                  </svg>
+                  <span className="flex-1 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">
+                    즐겨찾기
+                  </span>
+                  <div className={`w-8 h-4 rounded-full transition-colors flex-shrink-0 flex items-center px-0.5 ${favoritesOpen ? 'bg-amber-400' : 'bg-gray-200 dark:bg-gray-700'}`}>
+                    <div className={`w-3 h-3 rounded-full bg-white shadow transition-transform ${favoritesOpen ? 'translate-x-4' : 'translate-x-0'}`} />
+                  </div>
+                </button>
+                {favoritesOpen && favoriteItems.length > 0 && (
+                  <button
+                    onClick={() => setFavEditMode((v) => !v)}
+                    className={`mr-1 px-2 py-1 text-[10px] font-bold rounded-lg transition-colors flex-shrink-0 ${
+                      favEditMode
+                        ? 'bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400'
+                        : 'text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'
+                    }`}
+                  >
+                    {favEditMode ? '완료' : '편집'}
+                  </button>
+                )}
+              </div>
 
-              <div className={`overflow-hidden transition-all duration-200 ${favoritesOpen ? 'max-h-96 opacity-100' : 'max-h-0 opacity-0'}`}>
+              <div className={`overflow-hidden transition-all duration-200 ${favoritesOpen ? 'max-h-[500px] opacity-100' : 'max-h-0 opacity-0'}`}>
                 <div className="pl-2 pt-0.5 space-y-0.5">
                   {favoriteItems.length === 0 ? (
                     <p className="px-3 py-2 text-[11px] text-gray-400 dark:text-gray-600 italic">
                       메뉴에서 ★을 눌러 추가하세요
                     </p>
+                  ) : favEditMode ? (
+                    // 편집 모드: 드래그앤드롭
+                    favoriteItems.map((item, idx) => (
+                      <div
+                        key={item.href}
+                        draggable
+                        onDragStart={() => handleDragStart(idx)}
+                        onDragOver={(e) => handleDragOver(e, idx)}
+                        onDrop={() => handleDrop(idx)}
+                        onDragEnd={handleDragEnd}
+                        className={`flex items-center gap-2 px-2 py-2 rounded-xl select-none transition-all ${
+                          dragSrcIdx === idx ? 'opacity-30' : 'opacity-100'
+                        } ${
+                          dragOverIdx === idx && dragSrcIdx !== idx
+                            ? 'bg-amber-50 dark:bg-amber-900/20 ring-1 ring-amber-300 dark:ring-amber-700'
+                            : 'hover:bg-gray-50 dark:hover:bg-gray-800/40'
+                        }`}
+                        style={{ cursor: 'grab' }}
+                      >
+                        {/* 드래그 핸들 */}
+                        <span className="text-gray-300 dark:text-gray-600 flex-shrink-0">
+                          <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                            <circle cx="7" cy="4" r="1.5" /><circle cx="13" cy="4" r="1.5" />
+                            <circle cx="7" cy="10" r="1.5" /><circle cx="13" cy="10" r="1.5" />
+                            <circle cx="7" cy="16" r="1.5" /><circle cx="13" cy="16" r="1.5" />
+                          </svg>
+                        </span>
+                        <span className="flex-shrink-0 text-gray-400 dark:text-gray-500">{item.icon}</span>
+                        <span className="flex-1 text-sm font-medium text-gray-700 dark:text-gray-300 truncate">{item.label}</span>
+                        {/* 즐겨찾기 해제 */}
+                        <button
+                          type="button"
+                          onClick={(e) => { e.stopPropagation(); toggleFavorite(item.href) }}
+                          className="flex-shrink-0 p-0.5 rounded text-amber-400 hover:text-gray-300 dark:hover:text-gray-600 transition-colors"
+                          title="즐겨찾기 해제"
+                        >
+                          <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
+                          </svg>
+                        </button>
+                      </div>
+                    ))
                   ) : (
+                    // 일반 모드
                     favoriteItems.map((item) => (
                       <NavItemEl
                         key={item.href}
