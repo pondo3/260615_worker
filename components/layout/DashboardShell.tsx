@@ -4,6 +4,9 @@ import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useTheme } from '@/components/ThemeProvider'
+import { NotificationProvider } from '@/components/notifications/NotificationProvider'
+import NotificationBell from '@/components/notifications/NotificationBell'
+import ToastContainer from '@/components/notifications/ToastContainer'
 
 const FAVORITES_KEY = 'nav-favorites'
 const FAVORITES_OPEN_KEY = 'nav-favorites-open'
@@ -347,6 +350,7 @@ export default function DashboardShell({ user, logoutAction, children }: {
     .filter(Boolean) as (NavItem & { stageColor: string })[]
 
   return (
+    <NotificationProvider>
     <div className="min-h-screen flex bg-gray-50 dark:bg-gray-950">
       {/* ── 사이드바 ── */}
       <aside className={`${collapsed ? 'w-16' : 'w-64'} bg-white dark:bg-gray-900 border-r border-gray-100 dark:border-gray-800 flex flex-col fixed top-0 left-0 h-screen z-20 shadow-sm transition-all duration-200`}>
@@ -369,6 +373,7 @@ export default function DashboardShell({ user, logoutAction, children }: {
                 </div>
               </div>
               <div className="flex items-center gap-0.5">
+                <NotificationBell />
                 <ThemeToggle />
                 <button
                   onClick={() => setCollapsed(true)}
@@ -560,5 +565,7 @@ export default function DashboardShell({ user, logoutAction, children }: {
         {children}
       </main>
     </div>
+    <ToastContainer />
+    </NotificationProvider>
   )
 }
