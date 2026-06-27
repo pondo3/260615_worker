@@ -505,8 +505,8 @@ export default function DashboardShell({ user, logoutAction, children }: {
             <div className="border-t border-gray-100 dark:border-gray-800" />
           </div>
 
-          {/* 단계별 그룹 — 즐겨찾기가 켜져 있고 항목이 있으면 숨김 */}
-          {(!favoritesOpen || favoriteItems.length === 0) && stageGroups.map((group) => (
+          {/* 단계별 그룹 */}
+          {stageGroups.map((group) => (
             <StageGroupEl
               key={group.stage}
               group={group}
