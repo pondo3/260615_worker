@@ -268,6 +268,61 @@ export async function getExecutionHistory(processId: number) {
   })
 }
 
+// ─── 템플릿 복제 ─────────────────────────────────────────────────────────────
+
+export async function cloneProcess(templateId: number, newTitle?: string) {
+  const session = await verifySession()
+  const template = await prisma.process.findFirst({
+    where: { id: templateId, userId: session.userId },
+    include: { steps: { orderBy: { order: 'asc' } }, connections: true },
+  })
+  if (!template) throw new Error('권한 없음')
+
+  const newProc = await prisma.process.create({
+    data: {
+      userId: session.userId,
+      title: newTitle ?? `${template.title} (복사본)`,
+      description: template.description,
+      category: template.category,
+      purpose: template.purpose,
+      importance: template.importance,
+      tags: template.tags as string[],
+      isTemplate: false,
+    },
+  })
+
+  const stepIdMap = new Map<number, number>()
+  for (const step of template.steps) {
+    const newStep = await prisma.processStep.create({
+      data: {
+        processId: newProc.id,
+        title: step.title,
+        description: step.description,
+        order: step.order,
+        estimatedMinutes: step.estimatedMinutes,
+        completionCondition: step.completionCondition,
+        memo: step.memo,
+        checklist: (step.checklist as object[]) ?? [],
+        relatedLinks: (step.relatedLinks as object[]) ?? [],
+      },
+    })
+    stepIdMap.set(step.id, newStep.id)
+  }
+
+  for (const conn of template.connections) {
+    const newFrom = stepIdMap.get(conn.fromStepId)
+    const newTo = stepIdMap.get(conn.toStepId)
+    if (newFrom && newTo) {
+      await prisma.processStepConnection.create({
+        data: { processId: newProc.id, fromStepId: newFrom, toStepId: newTo, type: conn.type, label: conn.label },
+      })
+    }
+  }
+
+  revalidatePath('/processes')
+  return newProc
+}
+
 // ─── 노드 위치 저장 ──────────────────────────────────────────────────────────
 
 export async function saveNodePosition(stepId: number, posX: number, posY: number) {

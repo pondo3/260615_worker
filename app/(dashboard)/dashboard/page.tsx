@@ -128,7 +128,7 @@ export default async function DashboardPage() {
   const todayEnd = new Date(today)
   todayEnd.setHours(23, 59, 59, 999)
 
-  const [todayTasks, overdueTasks, weekTasks, activeProjectCount, activeRoutines, todayRoutineLogs, activeGoals, activeTests] = await Promise.all([
+  const [todayTasks, overdueTasks, weekTasks, activeProjectCount, activeRoutines, todayRoutineLogs, activeGoals, activeTests, activeProcesses] = await Promise.all([
     prisma.task.findMany({
       where: { userId: session.userId, taskDate: { gte: today, lt: tomorrow } },
       orderBy: [{ importance: 'asc' }, { urgency: 'asc' }, { sortOrder: 'asc' }],
@@ -161,6 +161,12 @@ export default async function DashboardPage() {
       select: { id: true, title: true, status: true, platform: true },
       orderBy: { createdAt: 'desc' },
       take: 3,
+    }),
+    prisma.process.findMany({
+      where: { userId: session.userId, status: 'active' },
+      include: { steps: { select: { status: true } } },
+      orderBy: { updatedAt: 'desc' },
+      take: 4,
     }),
   ])
 
@@ -579,23 +585,42 @@ export default async function DashboardPage() {
           )}
         </div>
 
-        {/* 빠른 이동 */}
+        {/* 프로세스 현황 */}
         <div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-700 p-5">
-          <h3 className="text-sm font-bold text-gray-900 dark:text-white mb-4">빠른 이동</h3>
-          <div className="space-y-2">
-            {[
-              { href: '/time', label: '시간 관리', icon: '⏱', color: 'text-teal-600 bg-teal-50 dark:bg-teal-900/20' },
-              { href: '/analysis', label: '분석 대시보드', icon: '📊', color: 'text-indigo-600 bg-indigo-50 dark:bg-indigo-900/20' },
-              { href: '/reports/monthly', label: '월간 리포트', icon: '📋', color: 'text-violet-600 bg-violet-50 dark:bg-violet-900/20' },
-              { href: '/projects', label: '프로젝트', icon: '📁', color: 'text-violet-600 bg-violet-50 dark:bg-violet-900/20' },
-            ].map(({ href, label, icon, color }) => (
-              <Link key={href} href={href}
-                className={`flex items-center gap-2.5 px-3 py-2 rounded-xl ${color} transition-colors hover:opacity-80`}>
-                <span className="text-sm">{icon}</span>
-                <span className="text-xs font-semibold">{label}</span>
-              </Link>
-            ))}
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <div className="w-7 h-7 rounded-lg bg-indigo-50 dark:bg-indigo-900/20 flex items-center justify-center border border-indigo-200 dark:border-indigo-900">
+                <svg className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
+              </div>
+              <h3 className="text-sm font-bold text-gray-900 dark:text-white">프로세스</h3>
+            </div>
+            <Link href="/processes" className="text-xs text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">→</Link>
           </div>
+          {activeProcesses.length === 0 ? (
+            <p className="text-xs text-gray-400 dark:text-gray-500 text-center py-4">진행 중 프로세스 없음</p>
+          ) : (
+            <div className="space-y-2.5">
+              {activeProcesses.map((proc) => {
+                const done = proc.steps.filter((s) => s.status === 'completed').length
+                const inProg = proc.steps.filter((s) => s.status === 'in_progress').length
+                const pct = proc.steps.length > 0 ? Math.round((done / proc.steps.length) * 100) : 0
+                return (
+                  <Link key={proc.id} href="/processes" className="block">
+                    <div className="flex items-center justify-between mb-0.5">
+                      <span className="text-xs text-gray-700 dark:text-gray-300 truncate flex-1 mr-2">{proc.title}</span>
+                      <span className="text-[10px] font-bold text-gray-400 flex-shrink-0">{pct}%</span>
+                    </div>
+                    <div className="w-full bg-gray-100 dark:bg-gray-800 rounded-full h-1.5">
+                      <div className="h-1.5 rounded-full bg-gradient-to-r from-indigo-500 to-blue-400 transition-all" style={{ width: `${pct}%` }} />
+                    </div>
+                    {inProg > 0 && (
+                      <p className="text-[9px] text-blue-500 mt-0.5">진행 중 {inProg}단계</p>
+                    )}
+                  </Link>
+                )
+              })}
+            </div>
+          )}
         </div>
 
       </div>

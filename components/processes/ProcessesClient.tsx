@@ -4,19 +4,21 @@ import { useState, useCallback, useRef } from 'react'
 import dynamic from 'next/dynamic'
 import {
   createProcess, updateProcess, deleteProcess, toggleFavorite,
-  createStep, updateStep,
+  createStep, cloneProcess,
 } from '@/app/actions/processes'
 import type { Process, ProcessStep } from './types'
-import { CATEGORIES, IMPORTANCE_OPTIONS, STEP_STATUS_DOT, STEP_STATUS_LABEL } from './types'
+import { CATEGORIES, IMPORTANCE_OPTIONS, STEP_STATUS_DOT } from './types'
 import ChecklistView from './views/ChecklistView'
 import KanbanView from './views/KanbanView'
+import TimelineView from './views/TimelineView'
 import StepDetailPanel from './StepDetailPanel'
 import ExecutionMode from './ExecutionMode'
+import ExecutionHistoryModal from './ExecutionHistoryModal'
 
 const FlowchartView = dynamic(() => import('./views/FlowchartView'), { ssr: false })
 const MindmapView = dynamic(() => import('./views/MindmapView'), { ssr: false })
 
-type ViewMode = 'mindmap' | 'flowchart' | 'checklist' | 'kanban'
+type ViewMode = 'mindmap' | 'flowchart' | 'checklist' | 'kanban' | 'timeline'
 type Toast = { id: number; message: string; type: 'success' | 'error' }
 
 function useToast() {
@@ -160,6 +162,20 @@ function OverviewDashboard({
                     ))}
                     {proc.tags.length > 3 && <span className="text-[9px] text-gray-400">+{proc.tags.length - 3}</span>}
                   </div>
+                )}
+
+                {/* 템플릿 복제 버튼 */}
+                {proc.isTemplate && (
+                  <button
+                    onClick={async (e) => {
+                      e.stopPropagation()
+                      const newProc = await cloneProcess(proc.id)
+                      onSelect({ ...proc, id: newProc.id, title: newProc.title, isTemplate: false, steps: [], connections: [], executionCount: 0, createdAt: newProc.createdAt.toISOString(), updatedAt: newProc.updatedAt.toISOString(), lastUsedAt: null })
+                    }}
+                    className="mt-3 w-full py-1.5 text-[11px] font-semibold rounded-xl bg-violet-50 dark:bg-violet-900/20 text-violet-600 dark:text-violet-400 hover:bg-violet-100 dark:hover:bg-violet-900/40 transition-colors border border-violet-200 dark:border-violet-800"
+                  >
+                    이 템플릿으로 시작
+                  </button>
                 )}
               </div>
             )
@@ -323,6 +339,7 @@ function AddStepForm({ processId, onAdded }: { processId: number; onAdded: (step
 const VIEW_TABS: { key: ViewMode; label: string; icon: React.ReactNode }[] = [
   { key: 'mindmap', label: '마인드맵', icon: <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" /></svg> },
   { key: 'flowchart', label: '순서도', icon: <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg> },
+  { key: 'timeline', label: '타임라인', icon: <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg> },
   { key: 'checklist', label: '체크리스트', icon: <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" /></svg> },
   { key: 'kanban', label: '칸반', icon: <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2" /></svg> },
 ]
@@ -344,6 +361,7 @@ export default function ProcessesClient({ initialProcesses }: { initialProcesses
   const [showProcessForm, setShowProcessForm] = useState(false)
   const [editingProcess, setEditingProcess] = useState<Process | undefined>()
   const [showExecution, setShowExecution] = useState(false)
+  const [showHistory, setShowHistory] = useState(false)
   const [confirmModal, setConfirmModal] = useState<{ message: string; onConfirm: () => void } | null>(null)
 
   const filteredProcesses = processes.filter((p) => {
@@ -525,6 +543,11 @@ export default function ProcessesClient({ initialProcesses }: { initialProcesses
 
               <AddStepForm processId={selectedProcess.id} onAdded={handleStepAdded} />
 
+              <button onClick={() => setShowHistory(true)}
+                className="flex-shrink-0 p-1.5 rounded-xl text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors" title="실행 이력">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+              </button>
+
               <button onClick={() => setShowExecution(true)}
                 className="flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-xl bg-emerald-500 text-white hover:bg-emerald-600 transition-colors">
                 <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
@@ -536,6 +559,7 @@ export default function ProcessesClient({ initialProcesses }: { initialProcesses
               <div className="flex-1 overflow-hidden">
                 {viewMode === 'mindmap' && <MindmapView process={selectedProcess} onSelectStep={(s) => setSelectedStep(s)} selectedStepId={selectedStep?.id ?? null} onStepsChange={handleStepsChange} />}
                 {viewMode === 'flowchart' && <FlowchartView process={selectedProcess} onSelectStep={(s) => setSelectedStep(s)} selectedStepId={selectedStep?.id ?? null} onStepsChange={handleStepsChange} />}
+                {viewMode === 'timeline' && <TimelineView process={selectedProcess} onSelectStep={(s) => setSelectedStep(s)} selectedStepId={selectedStep?.id ?? null} onStepsChange={handleStepsChange} />}
                 {viewMode === 'checklist' && <ChecklistView process={selectedProcess} onSelectStep={(s) => setSelectedStep(s)} selectedStepId={selectedStep?.id ?? null} onStepsChange={handleStepsChange} />}
                 {viewMode === 'kanban' && <KanbanView process={selectedProcess} onSelectStep={(s) => setSelectedStep(s)} selectedStepId={selectedStep?.id ?? null} onStepsChange={handleStepsChange} />}
               </div>
@@ -568,6 +592,10 @@ export default function ProcessesClient({ initialProcesses }: { initialProcesses
 
       {showExecution && selectedProcess && (
         <ExecutionMode process={selectedProcess} onClose={() => { setShowExecution(false); show('실행이 기록되었습니다.') }} />
+      )}
+
+      {showHistory && selectedProcess && (
+        <ExecutionHistoryModal processId={selectedProcess.id} processTitle={selectedProcess.title} onClose={() => setShowHistory(false)} />
       )}
 
       {confirmModal && (
