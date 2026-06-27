@@ -44,6 +44,11 @@ model User {
   ideas              Idea[]
   records            Record[]
   attachments        Attachment[]
+  channels           Channel[]
+  collectionRules    CollectionRule[]
+  materials          Material[]
+  processes          Process[]
+  processExecutions  ProcessExecution[]
 
   @@map("users")
 }
@@ -720,6 +725,193 @@ model IdeaRelatedLink {
   idea Idea @relation(fields: [ideaId], references: [id], onDelete: Cascade)
 
   @@map("idea_related_links")
+}
+
+// ============================
+// 프로세스 관리 테이블
+// ============================
+model Process {
+  id          Int           @id @default(autoincrement())
+  userId      Int           @map("user_id")
+  title       String        @db.VarChar(255)
+  description String?       @db.Text
+  category    String?       @db.VarChar(100)
+  purpose     String?       @db.Text
+  status      ProcessStatus @default(active)
+  importance  String        @default("보통") @db.VarChar(20)
+  tags        Json          @default("[]")
+  isTemplate  Boolean       @default(false) @map("is_template")
+  isFavorite  Boolean       @default(false) @map("is_favorite")
+  projectId   Int?          @map("project_id")
+  lastUsedAt  DateTime?     @map("last_used_at")
+  createdAt   DateTime      @default(now()) @map("created_at")
+  updatedAt   DateTime      @updatedAt @map("updated_at")
+
+  user       User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  steps      ProcessStep[]
+  connections ProcessStepConnection[]
+  executions ProcessExecution[]
+
+  @@map("processes")
+}
+
+enum ProcessStatus {
+  active
+  archived
+  draft
+}
+
+model ProcessStep {
+  id                  Int        @id @default(autoincrement())
+  processId           Int        @map("process_id")
+  title               String     @db.VarChar(255)
+  description         String?    @db.Text
+  order               Int        @default(0)
+  status              StepStatus @default(pending)
+  checklist           Json?
+  estimatedMinutes    Int?       @map("estimated_minutes")
+  completionCondition String?    @map("completion_condition") @db.Text
+  relatedLinks        Json?      @map("related_links")
+  memo                String?    @db.Text
+  posX                Float?     @map("pos_x")
+  posY                Float?     @map("pos_y")
+  createdAt           DateTime   @default(now()) @map("created_at")
+  updatedAt           DateTime   @updatedAt @map("updated_at")
+
+  process         Process                @relation(fields: [processId], references: [id], onDelete: Cascade)
+  fromConnections ProcessStepConnection[] @relation("FromStep")
+  toConnections   ProcessStepConnection[] @relation("ToStep")
+
+  @@map("process_steps")
+}
+
+enum StepStatus {
+  pending
+  in_progress
+  review
+  completed
+  on_hold
+}
+
+model ProcessStepConnection {
+  id        Int            @id @default(autoincrement())
+  processId Int            @map("process_id")
+  fromStepId Int           @map("from_step_id")
+  toStepId  Int            @map("to_step_id")
+  type      ConnectionType @default(sequential)
+  label     String?        @db.VarChar(100)
+  createdAt DateTime       @default(now()) @map("created_at")
+
+  process  Process     @relation(fields: [processId], references: [id], onDelete: Cascade)
+  fromStep ProcessStep @relation("FromStep", fields: [fromStepId], references: [id], onDelete: Cascade)
+  toStep   ProcessStep @relation("ToStep", fields: [toStepId], references: [id], onDelete: Cascade)
+
+  @@unique([fromStepId, toStepId])
+  @@map("process_step_connections")
+}
+
+enum ConnectionType {
+  sequential
+  parallel
+  conditional
+}
+
+model ProcessExecution {
+  id          Int             @id @default(autoincrement())
+  processId   Int             @map("process_id")
+  userId      Int             @map("user_id")
+  status      ExecutionStatus @default(in_progress)
+  startedAt   DateTime        @default(now()) @map("started_at")
+  completedAt DateTime?       @map("completed_at")
+  notes       String?         @db.Text
+  createdAt   DateTime        @default(now()) @map("created_at")
+
+  process        Process                @relation(fields: [processId], references: [id], onDelete: Cascade)
+  user           User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  stepExecutions ProcessExecutionStep[]
+
+  @@map("process_executions")
+}
+
+enum ExecutionStatus {
+  in_progress
+  completed
+  cancelled
+}
+
+model ProcessExecutionStep {
+  id          Int        @id @default(autoincrement())
+  executionId Int        @map("execution_id")
+  stepId      Int        @map("step_id")
+  status      StepStatus @default(pending)
+  completedAt DateTime?  @map("completed_at")
+  notes       String?    @db.Text
+  createdAt   DateTime   @default(now()) @map("created_at")
+
+  execution ProcessExecution @relation(fields: [executionId], references: [id], onDelete: Cascade)
+
+  @@unique([executionId, stepId])
+  @@map("process_execution_steps")
+}
+
+// ============================
+// YouTube 소재 수집 테이블
+// ============================
+model Channel {
+  id           Int              @id @default(autoincrement())
+  userId       Int              @map("user_id")
+  channelId    String           @map("channel_id") @db.VarChar(100)
+  channelName  String?          @map("channel_name") @db.VarChar(255)
+  thumbnailUrl String?          @map("thumbnail_url") @db.Text
+  isActive     Boolean          @default(true) @map("is_active")
+  createdAt    DateTime         @default(now()) @map("created_at")
+
+  user  User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  rules CollectionRule[]
+
+  @@unique([userId, channelId])
+  @@map("channels")
+}
+
+model CollectionRule {
+  id           Int      @id @default(autoincrement())
+  channelDbId  Int      @map("channel_db_id")
+  userId       Int      @map("user_id")
+  minViews     Int      @default(0) @map("min_views")
+  maxDaysOld   Int      @default(30) @map("max_days_old")
+  minLikes     Int      @default(0) @map("min_likes")
+  minComments  Int      @default(0) @map("min_comments")
+  scheduleHour Int?     @map("schedule_hour")
+  isActive     Boolean  @default(true) @map("is_active")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  channel Channel @relation(fields: [channelDbId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("collection_rules")
+}
+
+model Material {
+  id           Int       @id @default(autoincrement())
+  userId       Int       @map("user_id")
+  videoId      String    @map("video_id") @db.VarChar(20)
+  title        String?   @db.Text
+  channelName  String?   @map("channel_name") @db.VarChar(255)
+  channelId    String?   @map("channel_id") @db.VarChar(100)
+  viewCount    Int?      @map("view_count")
+  likeCount    Int?      @map("like_count")
+  commentCount Int?      @map("comment_count")
+  publishedAt  DateTime? @map("published_at")
+  thumbnailUrl String?   @map("thumbnail_url") @db.Text
+  platform     String    @default("youtube") @db.VarChar(50)
+  isUsed       Boolean   @default(false) @map("is_used")
+  usedAt       DateTime? @map("used_at")
+  collectedAt  DateTime  @default(now()) @map("collected_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, videoId])
+  @@map("materials")
 }
 
 // ============================
