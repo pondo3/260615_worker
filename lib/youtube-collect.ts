@@ -168,6 +168,25 @@ export async function collectChannelVideos(
   return results
 }
 
+// 단일 영상 조회수 조회 (테스트 스냅샷용)
+export async function fetchVideoViewCount(videoId: string, apiKey: string): Promise<{
+  viewCount: number
+  title: string
+  channelName: string
+} | null> {
+  const url = buildYouTubeUrl('videos', { id: videoId, part: 'statistics,snippet' }, apiKey)
+  const res = await fetch(url, { cache: 'no-store' })
+  if (!res.ok) return null
+  const data = await res.json()
+  const item = data.items?.[0]
+  if (!item) return null
+  return {
+    viewCount: parseInt(item.statistics?.viewCount ?? '0', 10),
+    title: item.snippet?.title ?? '',
+    channelName: item.snippet?.channelTitle ?? '',
+  }
+}
+
 // 활성 YouTube API 키 가져오기 (DB 키 → 환경변수 키 순서)
 export async function getActiveApiKey(userId: number): Promise<string | null> {
   const { prisma } = await import('@/lib/prisma')

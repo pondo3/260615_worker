@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { prisma } from '@/lib/prisma'
 import { verifySession } from '@/lib/dal'
+import { fetchVideoViewCount, getActiveApiKey } from '@/lib/youtube-collect'
 
 export type TestFormState =
   | { success: true }
@@ -10,6 +11,20 @@ export type TestFormState =
   | undefined
 
 type LinkInput = { label: string; url: string; memo: string }
+
+function extractYouTubeVideoId(url: string): string | null {
+  const patterns = [
+    /[?&]v=([^&#]+)/,
+    /youtu\.be\/([^?#]+)/,
+    /youtube\.com\/shorts\/([^?#]+)/,
+    /youtube\.com\/embed\/([^?#]+)/,
+  ]
+  for (const p of patterns) {
+    const m = url.match(p)
+    if (m) return m[1]
+  }
+  return null
+}
 type SnapshotInput = { checkpoint: 'initial' | 'after_12h' | 'after_48h'; value: string; memo: string }
 
 function extractFields(formData: FormData) {
@@ -72,12 +87,37 @@ export async function createTest(state: TestFormState, formData: FormData): Prom
     },
   })
 
-  if (f.links.length > 0) {
+  const validLinks = f.links.filter((l) => l.label || l.url)
+  if (validLinks.length > 0) {
     await prisma.testLink.createMany({
-      data: f.links.filter((l) => l.label || l.url).map((l) => ({
-        testId: test.id, label: l.label, url: l.url, memo: l.memo || null,
+      data: validLinks.map((l) => ({
+        testId: test.id,
+        label: l.label,
+        url: l.url,
+        videoId: extractYouTubeVideoId(l.url),
+        memo: l.memo || null,
       })),
     })
+  }
+
+  // YouTube 링크가 있으면 등록 시점 조회수 자동 수집
+  const firstVideoId = validLinks.map((l) => extractYouTubeVideoId(l.url)).find(Boolean)
+  if (firstVideoId) {
+    try {
+      const apiKey = await getActiveApiKey(session.userId)
+      if (apiKey) {
+        const stats = await fetchVideoViewCount(firstVideoId, apiKey)
+        if (stats) {
+          await prisma.testMetricSnapshot.upsert({
+            where: { testId_checkpoint: { testId: test.id, checkpoint: 'initial' } },
+            create: { testId: test.id, checkpoint: 'initial', value: stats.viewCount, memo: '자동 수집' },
+            update: { value: stats.viewCount, memo: '자동 수집' },
+          })
+        }
+      }
+    } catch {
+      // 조회수 수집 실패해도 테스트 등록은 성공
+    }
   }
 
   revalidatePath('/tests')
@@ -123,10 +163,15 @@ export async function updateTest(state: TestFormState, formData: FormData): Prom
 
   // 링크 교체
   await prisma.testLink.deleteMany({ where: { testId: id } })
-  if (f.links.length > 0) {
+  const validLinks2 = f.links.filter((l) => l.label || l.url)
+  if (validLinks2.length > 0) {
     await prisma.testLink.createMany({
-      data: f.links.filter((l) => l.label || l.url).map((l) => ({
-        testId: id, label: l.label, url: l.url, memo: l.memo || null,
+      data: validLinks2.map((l) => ({
+        testId: id,
+        label: l.label,
+        url: l.url,
+        videoId: extractYouTubeVideoId(l.url),
+        memo: l.memo || null,
       })),
     })
   }

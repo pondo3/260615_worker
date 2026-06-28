@@ -2,6 +2,7 @@
 
 import { useActionState, useEffect, useState } from 'react'
 import { createTest, updateTest } from '@/app/actions/tests'
+import { fetchUrlMetadata, translateToKorean } from '@/app/actions/materials'
 
 type Link = { label: string; url: string; memo: string }
 type Snapshot = { checkpoint: 'initial' | 'after_12h' | 'after_48h'; value: string; memo: string }
@@ -95,6 +96,7 @@ export default function TestModal({ onClose, test }: Props) {
   const [startDate, setStartDate] = useState(test?.startDate ?? '')
   const [endDate, setEndDate] = useState(test?.endDate ?? '')
   const [links, setLinks] = useState<Link[]>(test?.links ?? [])
+  const [linkFetching, setLinkFetching] = useState<Record<number, boolean>>({})
   const [purpose, setPurpose] = useState(test?.purpose ?? '')
   const [hypothesis, setHypothesis] = useState(test?.hypothesis ?? '')
   const [method, setMethod] = useState(test?.method ?? '')
@@ -134,6 +136,20 @@ export default function TestModal({ onClose, test }: Props) {
   function removeLink(i: number) { setLinks((prev) => prev.filter((_, idx) => idx !== i)) }
   function updateLink(i: number, field: keyof Link, val: string) {
     setLinks((prev) => prev.map((l, idx) => idx === i ? { ...l, [field]: val } : l))
+  }
+  async function handleUrlBlur(i: number, url: string) {
+    if (!url.trim() || !/youtu(\.be|be\.com)/.test(url)) return
+    if (links[i].label.trim()) return  // 이미 라벨이 있으면 덮어쓰지 않음
+    setLinkFetching((prev) => ({ ...prev, [i]: true }))
+    try {
+      const meta = await fetchUrlMetadata(url.trim())
+      if (meta.originalTitle) {
+        const translated = await translateToKorean(meta.originalTitle)
+        updateLink(i, 'label', translated ?? meta.originalTitle)
+      }
+    } finally {
+      setLinkFetching((prev) => ({ ...prev, [i]: false }))
+    }
   }
   function updateSnapshot(i: number, field: 'value' | 'memo', val: string) {
     setSnapshots((prev) => prev.map((s, idx) => idx === i ? { ...s, [field]: val } : s))
@@ -292,10 +308,16 @@ export default function TestModal({ onClose, test }: Props) {
               <div className="space-y-3">
                 {links.map((link, i) => (
                   <div key={i} className="bg-gray-50 dark:bg-gray-800/50 rounded-xl p-3 space-y-2">
+                    {/* URL 먼저 입력 → blur 시 YouTube면 제목 자동 fetch */}
+                    <input value={link.url} onChange={(e) => updateLink(i, 'url', e.target.value)}
+                      onBlur={(e) => handleUrlBlur(i, e.target.value)}
+                      placeholder="URL (YouTube 링크 입력 시 제목 자동 완성)"
+                      className="w-full text-sm bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg px-3 py-1.5 text-gray-700 dark:text-gray-300 placeholder-gray-300 dark:placeholder-gray-500 outline-none focus:border-orange-400 transition-colors" />
                     <div className="flex items-center gap-2">
                       <input value={link.label} onChange={(e) => updateLink(i, 'label', e.target.value)}
-                        placeholder="링크명"
-                        className="flex-1 text-sm bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg px-3 py-1.5 text-gray-700 dark:text-gray-300 placeholder-gray-300 dark:placeholder-gray-500 outline-none focus:border-orange-400 transition-colors" />
+                        placeholder={linkFetching[i] ? '제목 가져오는 중...' : '링크명'}
+                        disabled={linkFetching[i]}
+                        className="flex-1 text-sm bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg px-3 py-1.5 text-gray-700 dark:text-gray-300 placeholder-gray-300 dark:placeholder-gray-500 outline-none focus:border-orange-400 transition-colors disabled:opacity-60" />
                       <button type="button" onClick={() => removeLink(i)}
                         className="text-gray-400 hover:text-red-500 transition-colors flex-shrink-0">
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -303,9 +325,6 @@ export default function TestModal({ onClose, test }: Props) {
                         </svg>
                       </button>
                     </div>
-                    <input value={link.url} onChange={(e) => updateLink(i, 'url', e.target.value)}
-                      placeholder="URL"
-                      className="w-full text-sm bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg px-3 py-1.5 text-gray-700 dark:text-gray-300 placeholder-gray-300 dark:placeholder-gray-500 outline-none focus:border-orange-400 transition-colors" />
                     <input value={link.memo} onChange={(e) => updateLink(i, 'memo', e.target.value)}
                       placeholder="메모 (선택)"
                       className="w-full text-sm bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg px-3 py-1.5 text-gray-700 dark:text-gray-300 placeholder-gray-300 dark:placeholder-gray-500 outline-none focus:border-orange-400 transition-colors" />
