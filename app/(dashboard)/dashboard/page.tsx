@@ -128,7 +128,7 @@ export default async function DashboardPage() {
   const todayEnd = new Date(today)
   todayEnd.setHours(23, 59, 59, 999)
 
-  const [todayTasks, overdueTasks, weekTasks, activeProjectCount, activeRoutines, todayRoutineLogs, activeGoals, activeTests, activeProcesses] = await Promise.all([
+  const [todayTasks, overdueTasks, weekTasks, activeProjectCount, activeRoutines, todayRoutineLogs, activeGoals, activeTests, activeProcesses, todayTimeBlocks] = await Promise.all([
     prisma.task.findMany({
       where: { userId: session.userId, taskDate: { gte: today, lt: tomorrow } },
       orderBy: [{ importance: 'asc' }, { urgency: 'asc' }, { sortOrder: 'asc' }],
@@ -168,12 +168,37 @@ export default async function DashboardPage() {
       orderBy: { updatedAt: 'desc' },
       take: 4,
     }),
+    prisma.timeBlock.findMany({
+      where: { userId: session.userId, date: { gte: today, lt: tomorrow } },
+      select: { id: true, title: true, startTime: true, endTime: true, status: true, color: true, blockType: true },
+      orderBy: { startTime: 'asc' },
+    }),
   ])
 
   const doneTodayCount = todayTasks.filter((t) => t.status === 'done').length
   const pendingTodayCount = todayTasks.filter((t) => t.status !== 'done' && t.status !== 'cancelled').length
   const weekDone = weekTasks.filter((t) => t.status === 'done').length
   const weekPct = weekTasks.length > 0 ? Math.round((weekDone / weekTasks.length) * 100) : 0
+
+  // 시간 블록 통계
+  const tbPlannedMin = todayTimeBlocks.reduce((s, b) => {
+    const [sh, sm] = b.startTime.split(':').map(Number)
+    const [eh, em] = b.endTime.split(':').map(Number)
+    return s + Math.max(0, (eh * 60 + em) - (sh * 60 + sm))
+  }, 0)
+  const tbDoneMin = todayTimeBlocks.filter((b) => b.status === 'done').reduce((s, b) => {
+    const [sh, sm] = b.startTime.split(':').map(Number)
+    const [eh, em] = b.endTime.split(':').map(Number)
+    return s + Math.max(0, (eh * 60 + em) - (sh * 60 + sm))
+  }, 0)
+  const nowStr = `${String(new Date().getHours()).padStart(2, '0')}:${String(new Date().getMinutes()).padStart(2, '0')}`
+  const nextBlock = todayTimeBlocks.find((b) => b.startTime > nowStr && b.status !== 'done') ?? null
+  function fmtMin(m: number) {
+    if (m <= 0) return '0분'
+    const h = Math.floor(m / 60)
+    const min = m % 60
+    return h > 0 ? (min > 0 ? `${h}h ${min}m` : `${h}h`) : `${min}m`
+  }
   const todayPct = todayTasks.length > 0 ? Math.round((doneTodayCount / todayTasks.length) * 100) : 0
 
   // 우선순위 정렬: 1) 긴급+중요, 2) 중요, 3) 긴급, 4) 일반
@@ -484,6 +509,67 @@ export default async function DashboardPage() {
           </div>
         </div>
       </div>
+
+      {/* ── 시간 관리 요약 ── */}
+      {todayTimeBlocks.length > 0 && (
+        <div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-700 p-5">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <div className="w-7 h-7 rounded-lg bg-blue-50 dark:bg-blue-900/20 flex items-center justify-center border border-blue-200 dark:border-blue-900">
+                <svg className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <circle cx="12" cy="12" r="9" strokeWidth={1.8} />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M12 7v5l3 3" />
+                </svg>
+              </div>
+              <div>
+                <h3 className="text-sm font-bold text-gray-900 dark:text-white">오늘 시간 계획</h3>
+                <p className="text-xs text-gray-400 mt-0.5">{todayTimeBlocks.length}개 블록 · {fmtMin(tbPlannedMin)} 계획</p>
+              </div>
+            </div>
+            <Link href="/time" className="text-xs text-blue-500 hover:underline font-medium">시간표 보기</Link>
+          </div>
+          <div className="flex items-center gap-3 mb-3">
+            <div className="text-center">
+              <p className="text-lg font-black text-blue-600 dark:text-blue-400">{fmtMin(tbPlannedMin)}</p>
+              <p className="text-[10px] text-gray-400">계획</p>
+            </div>
+            <div className="flex-1 h-3 bg-gray-100 dark:bg-gray-800 rounded-full overflow-hidden">
+              <div
+                className="h-full bg-gradient-to-r from-blue-500 to-indigo-500 rounded-full transition-all"
+                style={{ width: tbPlannedMin > 0 ? `${Math.round(tbDoneMin / tbPlannedMin * 100)}%` : '0%' }}
+              />
+            </div>
+            <div className="text-center">
+              <p className="text-lg font-black text-emerald-600 dark:text-emerald-400">{fmtMin(tbDoneMin)}</p>
+              <p className="text-[10px] text-gray-400">완료</p>
+            </div>
+          </div>
+          <div className="flex gap-1.5 overflow-x-auto pb-1">
+            {todayTimeBlocks.slice(0, 6).map((b) => (
+              <div
+                key={b.id}
+                className="flex-shrink-0 px-2 py-1 rounded-lg text-[10px] font-semibold text-white"
+                style={{ backgroundColor: b.status === 'done' ? '#9CA3AF' : b.color, opacity: b.status === 'done' ? 0.7 : 1 }}
+              >
+                {b.status === 'done' ? '✓ ' : ''}{b.startTime} {b.title.length > 8 ? b.title.slice(0, 8) + '…' : b.title}
+              </div>
+            ))}
+            {todayTimeBlocks.length > 6 && (
+              <div className="flex-shrink-0 px-2 py-1 rounded-lg text-[10px] text-gray-400 bg-gray-100 dark:bg-gray-800">
+                +{todayTimeBlocks.length - 6}개
+              </div>
+            )}
+          </div>
+          {nextBlock && (
+            <div className="mt-3 pt-3 border-t border-gray-100 dark:border-gray-800 flex items-center gap-2">
+              <div className="w-1.5 h-1.5 rounded-full bg-blue-400 animate-pulse" />
+              <p className="text-xs text-gray-500 dark:text-gray-400">
+                다음: <span className="font-semibold text-gray-700 dark:text-gray-300">{nextBlock.startTime}</span> {nextBlock.title}
+              </p>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* ── Row 3: 성장 트래킹 ── */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">

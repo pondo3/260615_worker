@@ -125,5 +125,26 @@ export async function getUpcomingNotifications(): Promise<NotifItem[]> {
     })
   }
 
+  // ── TimeBlocks with alertEnabled today ──
+  const timeBlocks = await prisma.timeBlock.findMany({
+    where: {
+      userId: session.userId,
+      date: { gte: todayStart, lte: todayEnd },
+      alertEnabled: true,
+      status: { not: 'done' },
+    },
+    select: { id: true, title: true, startTime: true, alertMinutes: true },
+  })
+  for (const tb of timeBlocks) {
+    results.push({
+      id: `timeblock-${tb.id}`,
+      type: 'schedule',
+      title: `⏱ ${tb.title}`,
+      dateTime: buildDateTime(todayStart, tb.startTime).toISOString(),
+      href: '/time',
+      minutesBefore: tb.alertMinutes,
+    })
+  }
+
   return results
 }

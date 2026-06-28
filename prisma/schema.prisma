@@ -39,6 +39,7 @@ model User {
   resourceFolders    ResourceFolder[]
   apiKeys            ApiKey[]
   timeEntries        TimeEntry[]
+  timeBlocks         TimeBlock[]
   launcherGroups     LauncherGroup[]
   ideaCategories     IdeaCategory[]
   ideas              Idea[]
@@ -111,11 +112,12 @@ model Task {
   projectId        Int?    @map("project_id")
   goalId           Int?    @map("goal_id")
 
-  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  category    Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
-  project     Project?  @relation(fields: [projectId], references: [id], onDelete: SetNull)
-  goal        Goal?     @relation(fields: [goalId], references: [id], onDelete: SetNull)
+  user        User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  category    Category?  @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  project     Project?   @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  goal        Goal?      @relation(fields: [goalId], references: [id], onDelete: SetNull)
   timeEntries TimeEntry[]
+  timeBlocks  TimeBlock[]
 
   @@map("tasks")
 }
@@ -196,6 +198,7 @@ model Project {
   user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
   tasks       Task[]
   timeEntries TimeEntry[]
+  timeBlocks  TimeBlock[]
   schedules   Schedule[]
   ideas       Idea[]
   materials   Material[]
@@ -235,8 +238,9 @@ model Routine {
   createdAt   DateTime         @default(now()) @map("created_at")
   updatedAt   DateTime         @updatedAt @map("updated_at")
 
-  user User         @relation(fields: [userId], references: [id], onDelete: Cascade)
-  logs RoutineLog[]
+  user       User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  logs       RoutineLog[]
+  timeBlocks TimeBlock[]
 
   @@map("routines")
 }
@@ -946,6 +950,39 @@ model Material {
   project Project? @relation(fields: [projectId], references: [id], onDelete: SetNull)
 
   @@map("materials")
+}
+
+// ============================
+// 시간 블록 계획 테이블
+// ============================
+model TimeBlock {
+  id           Int      @id @default(autoincrement())
+  userId       Int      @map("user_id")
+  title        String   @db.VarChar(200)
+  date         DateTime @db.Date
+  startTime    String   @map("start_time") @db.VarChar(5)
+  endTime      String   @map("end_time") @db.VarChar(5)
+  blockType    String   @default("기타") @map("block_type") @db.VarChar(50)
+  importance   String   @default("medium") @db.VarChar(20)
+  status       String   @default("planned") @db.VarChar(20)
+  memo         String?  @db.Text
+  alertEnabled Boolean  @default(false) @map("alert_enabled")
+  alertMinutes Int      @default(10) @map("alert_minutes")
+  taskId       Int?     @map("task_id")
+  projectId    Int?     @map("project_id")
+  routineId    Int?     @map("routine_id")
+  actualStart  String?  @map("actual_start") @db.VarChar(5)
+  actualEnd    String?  @map("actual_end") @db.VarChar(5)
+  color        String   @default("#6366F1") @db.VarChar(7)
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  task    Task?    @relation(fields: [taskId], references: [id], onDelete: SetNull)
+  project Project? @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  routine Routine? @relation(fields: [routineId], references: [id], onDelete: SetNull)
+
+  @@map("time_blocks")
 }
 
 // ============================
