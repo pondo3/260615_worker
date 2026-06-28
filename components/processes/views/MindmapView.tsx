@@ -166,7 +166,6 @@ export default function MindmapView({
         completed: completedCount,
         category: process.category,
       },
-      draggable: false,
     },
     ...layout.map(({ step, x, y, side }) => ({
       id: String(step.id),
@@ -178,7 +177,6 @@ export default function MindmapView({
         selected: step.id === selectedStepId,
         side,
       },
-      draggable: false,
     })),
   // eslint-disable-next-line react-hooks/exhaustive-deps
   ], [process.id, process.steps.length, completedCount, selectedStepId])
@@ -207,7 +205,6 @@ export default function MindmapView({
           completed: completedCount,
           category: process.category,
         },
-        draggable: false,
       },
       ...layout.map(({ step, x, y, side }) => ({
         id: String(step.id),
@@ -219,7 +216,6 @@ export default function MindmapView({
           selected: step.id === selectedStepId,
           side,
         },
-        draggable: false,
       })),
     ])
   // eslint-disable-next-line react-hooks/exhaustive-deps

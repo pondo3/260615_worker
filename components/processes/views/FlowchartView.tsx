@@ -15,6 +15,8 @@ import {
   MarkerType,
   BackgroundVariant,
   Panel,
+  Handle,
+  Position,
 } from '@xyflow/react'
 import { saveNodePosition, createConnection, deleteConnection } from '@/app/actions/processes'
 import type { Process, ProcessStep, StepStatus } from '../types'
@@ -37,6 +39,11 @@ function StepNode({ data, selected }: { data: { step: ProcessStep; onSelect: (s:
       onClick={() => data.onSelect(step)}
       className={`w-44 rounded-xl border-2 shadow-sm cursor-pointer transition-all select-none ${STATUS_BG[step.status]} ${selected ? 'ring-2 ring-blue-500 ring-offset-1' : 'hover:shadow-md'}`}
     >
+      <Handle
+        type="target"
+        position={Position.Left}
+        className="!w-3 !h-3 !rounded-full !border-2 !border-gray-300 dark:!border-gray-600 !bg-white dark:!bg-gray-900"
+      />
       <div className="px-3 py-2.5">
         <div className="flex items-center gap-1.5 mb-1">
           <span className={`w-2 h-2 rounded-full flex-shrink-0 ${STEP_STATUS_DOT[step.status]}`} />
@@ -52,9 +59,11 @@ function StepNode({ data, selected }: { data: { step: ProcessStep; onSelect: (s:
           </p>
         )}
       </div>
-      {/* React Flow 핸들 표시 (invisible, just for connection detection) */}
-      <div className="absolute -left-2 top-1/2 -translate-y-1/2 w-3 h-3 rounded-full border-2 border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 react-flow__handle react-flow__handle-left" />
-      <div className="absolute -right-2 top-1/2 -translate-y-1/2 w-3 h-3 rounded-full border-2 border-blue-400 bg-white dark:bg-gray-900 react-flow__handle react-flow__handle-right" />
+      <Handle
+        type="source"
+        position={Position.Right}
+        className="!w-3 !h-3 !rounded-full !border-2 !border-blue-400 !bg-white dark:!bg-gray-900"
+      />
     </div>
   )
 }
