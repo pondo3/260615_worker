@@ -191,47 +191,52 @@ export async function createResource(state: ResourceFormState, formData: FormDat
 
   const relatedLinks = parseRelatedLinks(formData)
 
-  const created = await prisma.resourceLink.create({
-    data: {
-      userId: session.userId,
-      title: f.title,
-      url: f.url,
-      memo: f.memo,
-      platform: f.platform,
-      customPlatform: f.customPlatform,
-      resourceType: f.resourceType,
-      customResourceType: f.customResourceType,
-      status: f.status,
-      priority: f.priority,
-      isFavorite: f.isFavorite,
-      tags: f.tags.length > 0 ? f.tags : [],
-      thumbnailUrl: f.thumbnailUrl,
-      thumbnailSource: f.thumbnailSource,
-      ytVideoId: f.ytVideoId,
-      ytOriginalTitle: f.ytOriginalTitle,
-      ytChannelName: f.ytChannelName,
-      ytChannelId: f.ytChannelId,
-      ytPublishedAt: f.ytPublishedAt ? new Date(f.ytPublishedAt) : null,
-      ytDescription: f.ytDescription,
-      ytDuration: f.ytDuration,
-      ytViewCount: f.ytViewCount,
-      ytLikeCount: f.ytLikeCount,
-      ytCommentCount: f.ytCommentCount,
-      ytPrivacyStatus: f.ytPrivacyStatus,
-      ytApiLastFetched: f.ytApiLastFetched ? new Date(f.ytApiLastFetched) : null,
-      ytApiFetchSuccess: f.ytApiFetchSuccess,
-      ytApiError: f.ytApiError,
-      registeredAt: f.registeredAt ? new Date(f.registeredAt) : new Date(),
-      sourcePublishedAt: f.sourcePublishedAt ? new Date(f.sourcePublishedAt) : null,
-      categoryId: f.categoryId,
-      projectId: f.projectId,
-      testId: f.testId,
-      folderId: f.folderId,
-    },
-  })
+  try {
+    const created = await prisma.resourceLink.create({
+      data: {
+        userId: session.userId,
+        title: f.title,
+        url: f.url,
+        memo: f.memo,
+        platform: f.platform,
+        customPlatform: f.customPlatform,
+        resourceType: f.resourceType,
+        customResourceType: f.customResourceType,
+        status: f.status,
+        priority: f.priority,
+        isFavorite: f.isFavorite,
+        tags: f.tags.length > 0 ? f.tags : [],
+        thumbnailUrl: f.thumbnailUrl,
+        thumbnailSource: f.thumbnailSource,
+        ytVideoId: f.ytVideoId,
+        ytOriginalTitle: f.ytOriginalTitle,
+        ytChannelName: f.ytChannelName,
+        ytChannelId: f.ytChannelId,
+        ytPublishedAt: f.ytPublishedAt ? new Date(f.ytPublishedAt) : null,
+        ytDescription: f.ytDescription,
+        ytDuration: f.ytDuration,
+        ytViewCount: f.ytViewCount,
+        ytLikeCount: f.ytLikeCount,
+        ytCommentCount: f.ytCommentCount,
+        ytPrivacyStatus: f.ytPrivacyStatus,
+        ytApiLastFetched: f.ytApiLastFetched ? new Date(f.ytApiLastFetched) : null,
+        ytApiFetchSuccess: f.ytApiFetchSuccess,
+        ytApiError: f.ytApiError,
+        registeredAt: f.registeredAt ? new Date(f.registeredAt) : new Date(),
+        sourcePublishedAt: f.sourcePublishedAt ? new Date(f.sourcePublishedAt) : null,
+        categoryId: f.categoryId,
+        projectId: f.projectId,
+        testId: f.testId,
+        folderId: f.folderId,
+      },
+    })
 
-  if (relatedLinks.length > 0) {
-    await syncRelatedLinks(created.id, relatedLinks)
+    if (relatedLinks.length > 0) {
+      await syncRelatedLinks(created.id, relatedLinks)
+    }
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : '저장 중 오류가 발생했습니다.'
+    return { errors: { general: [msg] } }
   }
 
   revalidatePath('/resources')
@@ -254,44 +259,49 @@ export async function updateResource(state: ResourceFormState, formData: FormDat
   const relatedLinks = parseRelatedLinks(formData)
   await syncRelatedLinks(id, relatedLinks)
 
-  await prisma.resourceLink.update({
-    where: { id },
-    data: {
-      title: f.title,
-      url: f.url,
-      memo: f.memo,
-      platform: f.platform,
-      customPlatform: f.customPlatform,
-      resourceType: f.resourceType,
-      customResourceType: f.customResourceType,
-      status: f.status,
-      priority: f.priority,
-      isFavorite: f.isFavorite,
-      tags: f.tags.length > 0 ? f.tags : [],
-      thumbnailUrl: f.thumbnailUrl,
-      thumbnailSource: f.thumbnailSource,
-      ytVideoId: f.ytVideoId,
-      ytOriginalTitle: f.ytOriginalTitle,
-      ytChannelName: f.ytChannelName,
-      ytChannelId: f.ytChannelId,
-      ytPublishedAt: f.ytPublishedAt ? new Date(f.ytPublishedAt) : null,
-      ytDescription: f.ytDescription,
-      ytDuration: f.ytDuration,
-      ytViewCount: f.ytViewCount,
-      ytLikeCount: f.ytLikeCount,
-      ytCommentCount: f.ytCommentCount,
-      ytPrivacyStatus: f.ytPrivacyStatus,
-      ytApiLastFetched: f.ytApiLastFetched ? new Date(f.ytApiLastFetched) : null,
-      ytApiFetchSuccess: f.ytApiFetchSuccess,
-      ytApiError: f.ytApiError,
-      registeredAt: f.registeredAt ? new Date(f.registeredAt) : undefined,
-      sourcePublishedAt: f.sourcePublishedAt ? new Date(f.sourcePublishedAt) : null,
-      categoryId: f.categoryId,
-      projectId: f.projectId,
-      testId: f.testId,
-      folderId: f.folderId,
-    },
-  })
+  try {
+    await prisma.resourceLink.update({
+      where: { id },
+      data: {
+        title: f.title,
+        url: f.url,
+        memo: f.memo,
+        platform: f.platform,
+        customPlatform: f.customPlatform,
+        resourceType: f.resourceType,
+        customResourceType: f.customResourceType,
+        status: f.status,
+        priority: f.priority,
+        isFavorite: f.isFavorite,
+        tags: f.tags.length > 0 ? f.tags : [],
+        thumbnailUrl: f.thumbnailUrl,
+        thumbnailSource: f.thumbnailSource,
+        ytVideoId: f.ytVideoId,
+        ytOriginalTitle: f.ytOriginalTitle,
+        ytChannelName: f.ytChannelName,
+        ytChannelId: f.ytChannelId,
+        ytPublishedAt: f.ytPublishedAt ? new Date(f.ytPublishedAt) : null,
+        ytDescription: f.ytDescription,
+        ytDuration: f.ytDuration,
+        ytViewCount: f.ytViewCount,
+        ytLikeCount: f.ytLikeCount,
+        ytCommentCount: f.ytCommentCount,
+        ytPrivacyStatus: f.ytPrivacyStatus,
+        ytApiLastFetched: f.ytApiLastFetched ? new Date(f.ytApiLastFetched) : null,
+        ytApiFetchSuccess: f.ytApiFetchSuccess,
+        ytApiError: f.ytApiError,
+        registeredAt: f.registeredAt ? new Date(f.registeredAt) : undefined,
+        sourcePublishedAt: f.sourcePublishedAt ? new Date(f.sourcePublishedAt) : null,
+        categoryId: f.categoryId,
+        projectId: f.projectId,
+        testId: f.testId,
+        folderId: f.folderId,
+      },
+    })
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : '수정 중 오류가 발생했습니다.'
+    return { errors: { general: [msg] } }
+  }
 
   revalidatePath('/resources')
   return { success: true }

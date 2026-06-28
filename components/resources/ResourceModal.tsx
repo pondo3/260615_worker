@@ -479,7 +479,9 @@ export default function ResourceModal({ onClose, resource, categories, projects,
 
         {/* ── SINGLE FORM ── */}
         {(isEdit || tab === 'single') && (
-          <form action={formAction} className="flex-1 overflow-y-auto">
+          <>
+          {/* hidden 입력만 가진 form - footer 버튼이 항상 보이도록 분리 */}
+          <form id="resource-form" action={formAction}>
             {isEdit && <input type="hidden" name="id" value={resource.id} />}
             <input type="hidden" name="title" value={title} />
             <input type="hidden" name="url" value={url} />
@@ -515,6 +517,10 @@ export default function ResourceModal({ onClose, resource, categories, projects,
             <input type="hidden" name="testId" value={testId} />
             <input type="hidden" name="folderId" value={folderId} />
             <input type="hidden" name="relatedLinks" value={JSON.stringify(serializedLinks)} />
+          </form>
+
+          {/* 별도 스크롤 영역 */}
+          <div className="flex-1 overflow-y-auto">
 
             <div className="px-6 py-5 space-y-5">
               <div>
@@ -862,19 +868,21 @@ export default function ResourceModal({ onClose, resource, categories, projects,
 
               {errors.general && <p className="text-xs text-red-500">{errors.general[0]}</p>}
             </div>
+          </div>{/* 스크롤 영역 끝 */}
 
-            <div className="px-6 pb-5 flex items-center gap-2 border-t border-gray-100 dark:border-gray-800 pt-4 flex-shrink-0">
-              <button type="button" onClick={onClose}
-                className="flex-1 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 text-sm font-semibold text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
-                취소
-              </button>
-              <button type="submit" disabled={pending || hasLinkErrors}
-                title={hasLinkErrors ? '관련 링크의 URL을 확인해주세요.' : undefined}
-                className="flex-1 py-2.5 rounded-xl bg-teal-500 text-sm font-bold text-white hover:bg-teal-600 transition-colors disabled:opacity-50">
-                {pending ? '저장 중...' : isEdit ? '수정 완료' : '자료 등록'}
-              </button>
-            </div>
-          </form>
+          {/* Footer - 항상 고정 */}
+          <div className="flex-shrink-0 px-6 pb-5 pt-4 flex items-center gap-2 border-t border-gray-100 dark:border-gray-800">
+            <button type="button" onClick={onClose}
+              className="flex-1 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 text-sm font-semibold text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
+              취소
+            </button>
+            <button type="submit" form="resource-form" disabled={pending || hasLinkErrors}
+              title={hasLinkErrors ? '관련 링크의 URL을 확인해주세요.' : undefined}
+              className="flex-1 py-2.5 rounded-xl bg-teal-500 text-sm font-bold text-white hover:bg-teal-600 transition-colors disabled:opacity-50">
+              {pending ? '저장 중...' : isEdit ? '수정 완료' : '자료 등록'}
+            </button>
+          </div>
+          </>
         )}
 
         {/* ── BULK FORM ── */}
