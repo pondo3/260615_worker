@@ -75,11 +75,26 @@ export default function StepDetailPanel({
     setChecklist((prev) => prev.filter((_, i) => i !== idx))
   }
 
-  function addLink() {
+  async function addLink() {
     if (!newLinkUrl.trim()) return
-    setRelatedLinks((prev) => [...prev, { title: newLinkTitle.trim() || newLinkUrl.trim(), url: newLinkUrl.trim() }])
+    const newLink = { title: newLinkTitle.trim() || newLinkUrl.trim(), url: newLinkUrl.trim() }
+    const newLinks = [...relatedLinks, newLink]
+    setRelatedLinks(newLinks)
     setNewLinkTitle('')
     setNewLinkUrl('')
+    await updateStep(step.id, { relatedLinks: newLinks })
+    onStepUpdated({ ...step, relatedLinks: newLinks })
+  }
+
+  async function removeLink(idx: number) {
+    const newLinks = relatedLinks.filter((_, i) => i !== idx)
+    setRelatedLinks(newLinks)
+    await updateStep(step.id, { relatedLinks: newLinks })
+    onStepUpdated({ ...step, relatedLinks: newLinks })
+  }
+
+  function openAllLinks() {
+    relatedLinks.forEach((link) => window.open(link.url, '_blank', 'noopener,noreferrer'))
   }
 
   return (
@@ -211,27 +226,71 @@ export default function StepDetailPanel({
 
         {/* 관련 링크 */}
         <div>
-          <label className="text-xs font-semibold text-gray-500 dark:text-gray-400 block mb-1.5">관련 링크</label>
+          <div className="flex items-center justify-between mb-1.5">
+            <label className="text-xs font-semibold text-gray-500 dark:text-gray-400">관련 링크</label>
+            {relatedLinks.length >= 2 && (
+              <button
+                onClick={openAllLinks}
+                className="flex items-center gap-1 px-2 py-0.5 text-[10px] font-semibold rounded-lg bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-colors"
+              >
+                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                </svg>
+                전체 열기
+              </button>
+            )}
+          </div>
           <div className="space-y-1.5">
+            {relatedLinks.length === 0 && !editing && (
+              <p className="text-xs text-gray-300 dark:text-gray-600 italic">없음</p>
+            )}
             {relatedLinks.map((link, i) => (
-              <div key={i} className="flex items-center gap-2 group">
-                <a href={link.url} target="_blank" rel="noopener noreferrer" className="flex-1 text-xs text-blue-500 hover:underline truncate">{link.title}</a>
+              <div key={i} className="flex items-center gap-1.5 group rounded-lg border border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-gray-800/50 px-2.5 py-1.5">
+                <svg className="w-3 h-3 text-blue-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+                </svg>
+                <span className="flex-1 text-xs text-gray-700 dark:text-gray-300 truncate">{link.title}</span>
+                <button
+                  onClick={() => window.open(link.url, '_blank', 'noopener,noreferrer')}
+                  className="flex-shrink-0 p-0.5 rounded text-gray-400 hover:text-blue-500 transition-colors"
+                  title={link.url}
+                >
+                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                  </svg>
+                </button>
                 {editing && (
-                  <button onClick={() => setRelatedLinks((prev) => prev.filter((_, j) => j !== i))} className="opacity-0 group-hover:opacity-100 p-0.5 text-gray-400 hover:text-red-500 transition-all">
+                  <button onClick={() => removeLink(i)} className="flex-shrink-0 p-0.5 rounded text-gray-300 hover:text-red-500 dark:text-gray-600 transition-colors">
                     <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
                   </button>
                 )}
               </div>
             ))}
-            {editing && (
-              <div className="space-y-1 mt-1">
-                <input value={newLinkTitle} onChange={(e) => setNewLinkTitle(e.target.value)} placeholder="링크 제목" className="w-full text-xs px-2 py-1 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none" />
-                <div className="flex gap-1.5">
-                  <input value={newLinkUrl} onChange={(e) => setNewLinkUrl(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && addLink()} placeholder="https://..." className="flex-1 text-xs px-2 py-1 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none" />
-                  <button onClick={addLink} className="px-2 py-1 text-xs rounded-lg bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 transition-colors">추가</button>
-                </div>
+
+            {/* 링크 추가 폼 — 편집 모드와 무관하게 항상 표시 */}
+            <div className="space-y-1 pt-0.5">
+              <input
+                value={newLinkTitle}
+                onChange={(e) => setNewLinkTitle(e.target.value)}
+                placeholder="링크 제목 (선택)"
+                className="w-full text-xs px-2 py-1.5 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-blue-500 placeholder-gray-300 dark:placeholder-gray-600"
+              />
+              <div className="flex gap-1.5">
+                <input
+                  value={newLinkUrl}
+                  onChange={(e) => setNewLinkUrl(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && addLink()}
+                  placeholder="https://..."
+                  className="flex-1 text-xs px-2 py-1.5 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-blue-500 placeholder-gray-300 dark:placeholder-gray-600"
+                />
+                <button
+                  onClick={addLink}
+                  className="px-2.5 py-1 text-xs rounded-lg bg-blue-500 text-white hover:bg-blue-600 transition-colors font-medium"
+                >
+                  추가
+                </button>
               </div>
-            )}
+            </div>
           </div>
         </div>
 
