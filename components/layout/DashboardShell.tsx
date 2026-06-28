@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useTheme } from '@/components/ThemeProvider'
@@ -278,6 +278,30 @@ export default function DashboardShell({ user, logoutAction, children }: {
   const [dragOverIdx, setDragOverIdx] = useState<number | null>(null)
   const pathname = usePathname()
 
+  // ── 네비게이션 진행 바 ──
+  const [navActive, setNavActive] = useState(false)
+  const [navComplete, setNavComplete] = useState(false)
+  const navTimers = useRef<ReturnType<typeof setTimeout>[]>([])
+  const navStartPath = useRef<string | null>(null)
+
+  const startNav = useCallback(() => {
+    navTimers.current.forEach(clearTimeout)
+    navTimers.current = []
+    navStartPath.current = pathname
+    setNavComplete(false)
+    setNavActive(true)
+  }, [pathname])
+
+  useEffect(() => {
+    if (navActive && navStartPath.current !== null && pathname !== navStartPath.current) {
+      setNavComplete(true)
+      navStartPath.current = null
+      navTimers.current.push(
+        setTimeout(() => { setNavActive(false); setNavComplete(false) }, 450)
+      )
+    }
+  }, [pathname, navActive])
+
   // localStorage에서 즐겨찾기 불러오기
   useEffect(() => {
     const saved = localStorage.getItem(FAVORITES_KEY)
@@ -356,8 +380,31 @@ export default function DashboardShell({ user, logoutAction, children }: {
   return (
     <NotificationProvider>
     <div className="min-h-screen flex bg-gray-50 dark:bg-gray-950">
+
+      {/* ── 네비게이션 진행 바 ── */}
+      {navActive && (
+        <div className="fixed top-0 left-0 right-0 z-[9999] h-[2px] pointer-events-none">
+          <div
+            className="h-full bg-gradient-to-r from-blue-500 via-indigo-400 to-blue-500 rounded-full"
+            style={{
+              width: navComplete ? '100%' : '72%',
+              transition: navComplete
+                ? 'width 150ms ease-in, opacity 300ms ease 150ms'
+                : 'width 1800ms cubic-bezier(0.1, 0.5, 0.3, 1)',
+              opacity: navComplete ? 0 : 1,
+            }}
+          />
+        </div>
+      )}
+
       {/* ── 사이드바 ── */}
-      <aside className={`${collapsed ? 'w-16' : 'w-64'} bg-white dark:bg-gray-900 border-r border-gray-100 dark:border-gray-800 flex flex-col fixed top-0 left-0 h-screen z-20 shadow-sm transition-all duration-200`}>
+      <aside
+        onClick={(e) => {
+          const anchor = (e.target as Element).closest('a[href]') as HTMLAnchorElement | null
+          if (anchor) startNav()
+        }}
+        className={`${collapsed ? 'w-16' : 'w-64'} bg-white dark:bg-gray-900 border-r border-gray-100 dark:border-gray-800 flex flex-col fixed top-0 left-0 h-screen z-20 shadow-sm transition-all duration-200`}
+      >
 
         {/* 로고 + 컨트롤 */}
         <div className="h-14 flex items-center justify-between px-3 border-b border-gray-100 dark:border-gray-800 flex-shrink-0">
