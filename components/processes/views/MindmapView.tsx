@@ -248,9 +248,9 @@ export default function MindmapView({
         nodeTypes={nodeTypes}
         fitView
         fitViewOptions={{ padding: 0.3 }}
-        nodesDraggable={false}
+        nodesDraggable={true}
         nodesConnectable={false}
-        elementsSelectable={false}
+        elementsSelectable={true}
         zoomOnDoubleClick={false}
         className="bg-gray-50 dark:bg-gray-950"
       >
