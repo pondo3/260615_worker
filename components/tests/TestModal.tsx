@@ -172,8 +172,8 @@ export default function TestModal({ onClose, test }: Props) {
           ))}
         </div>
 
-        <form action={formAction} className="flex-1 overflow-y-auto">
-          {/* 모든 hidden 입력: 탭 전환과 무관하게 항상 제출 */}
+        {/* hidden 입력: form 바깥에 두어 footer가 항상 보이도록 분리 */}
+        <form id="test-form" action={formAction}>
           {isEdit && <input type="hidden" name="id" value={test.id} />}
           <input type="hidden" name="title" value={title} />
           <input type="hidden" name="platform" value={platform} />
@@ -199,6 +199,10 @@ export default function TestModal({ onClose, test }: Props) {
           <input type="hidden" name="analysisMemo" value={analysisMemo} />
           <input type="hidden" name="nextAction" value={nextAction} />
           <input type="hidden" name="snapshots" value={JSON.stringify(snapshots)} />
+        </form>
+
+        {/* 탭 콘텐츠 - 별도 스크롤 영역 */}
+        <div className="flex-1 overflow-y-auto">
 
           {/* ─ 계획 탭 ─ */}
           <div className={`px-6 py-5 space-y-5 ${tab === 'plan' ? '' : 'hidden'}`}>
@@ -423,18 +427,19 @@ export default function TestModal({ onClose, test }: Props) {
 
             {errors.general && <p className="text-xs text-red-500">{errors.general[0]}</p>}
           </div>
+        </div>
 
-          <div className="px-6 pb-5 flex items-center gap-2 border-t border-gray-100 dark:border-gray-800 pt-4 flex-shrink-0">
-            <button type="button" onClick={onClose}
-              className="flex-1 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 text-sm font-semibold text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
-              취소
-            </button>
-            <button type="submit" disabled={pending}
-              className="flex-1 py-2.5 rounded-xl bg-orange-500 text-sm font-bold text-white hover:bg-orange-600 transition-colors disabled:opacity-50">
-              {pending ? '저장 중...' : isEdit ? '수정 완료' : '테스트 추가'}
-            </button>
-          </div>
-        </form>
+        {/* Footer - form 바깥에서 항상 보이도록 고정 */}
+        <div className="flex-shrink-0 px-6 pb-5 pt-4 flex items-center gap-2 border-t border-gray-100 dark:border-gray-800">
+          <button type="button" onClick={onClose}
+            className="flex-1 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 text-sm font-semibold text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
+            취소
+          </button>
+          <button type="submit" form="test-form" disabled={pending}
+            className="flex-1 py-2.5 rounded-xl bg-orange-500 text-sm font-bold text-white hover:bg-orange-600 transition-colors disabled:opacity-50">
+            {pending ? '저장 중...' : isEdit ? '수정 완료' : '테스트 추가'}
+          </button>
+        </div>
       </div>
     </div>
   )

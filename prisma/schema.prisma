@@ -198,6 +198,7 @@ model Project {
   timeEntries TimeEntry[]
   schedules   Schedule[]
   ideas       Idea[]
+  materials   Material[]
 
   @@map("projects")
 }
@@ -639,9 +640,10 @@ model LauncherGroup {
 model LauncherLink {
   id             Int       @id @default(autoincrement())
   groupId        Int       @map("group_id")
-  name           String    @db.VarChar(100)
+  name           String    @db.VarChar(255)
   url            String    @db.VarChar(2048)
   description    String?   @db.Text
+  tags           String[]  @default([])
   sortOrder      Int       @default(0) @map("sort_order")
   isActive       Boolean   @default(true) @map("is_active")
   openNewTab     Boolean   @default(true) @map("open_new_tab")
@@ -892,25 +894,56 @@ model CollectionRule {
 }
 
 model Material {
-  id           Int       @id @default(autoincrement())
-  userId       Int       @map("user_id")
-  videoId      String    @map("video_id") @db.VarChar(20)
-  title        String?   @db.Text
-  channelName  String?   @map("channel_name") @db.VarChar(255)
-  channelId    String?   @map("channel_id") @db.VarChar(100)
-  viewCount    Int?      @map("view_count")
-  likeCount    Int?      @map("like_count")
-  commentCount Int?      @map("comment_count")
-  publishedAt  DateTime? @map("published_at")
-  thumbnailUrl String?   @map("thumbnail_url") @db.Text
-  platform     String    @default("youtube") @db.VarChar(50)
-  isUsed       Boolean   @default(false) @map("is_used")
-  usedAt       DateTime? @map("used_at")
-  collectedAt  DateTime  @default(now()) @map("collected_at")
+  id               Int       @id @default(autoincrement())
+  userId           Int       @map("user_id")
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  // URL & platform
+  url              String?   @db.Text
+  platform         String    @default("youtube") @db.VarChar(50)
+  videoId          String?   @map("video_id") @db.VarChar(100)
 
-  @@unique([userId, videoId])
+  // Titles (title column reused as originalTitle)
+  originalTitle    String?   @map("title") @db.Text
+  translatedTitle  String?   @map("translated_title") @db.Text
+  isTranslated     Boolean   @default(false) @map("is_translated")
+  translationEdited Boolean  @default(false) @map("translation_edited")
+
+  // Channel / metadata
+  channelName      String?   @map("channel_name") @db.VarChar(255)
+  channelId        String?   @map("channel_id") @db.VarChar(100)
+  thumbnailUrl     String?   @map("thumbnail_url") @db.Text
+  viewCount        Int?      @map("view_count")
+  likeCount        Int?      @map("like_count")
+  commentCount     Int?      @map("comment_count")
+  uploadedAt       DateTime? @map("published_at")
+
+  // Classification
+  category         String?   @db.VarChar(100)
+  tags             String[]
+  memo             String?   @db.Text
+  scriptIdea       String?   @map("script_idea") @db.Text
+  importance       String    @default("보통") @db.VarChar(20)
+
+  // Status
+  status           String    @default("수집됨") @db.VarChar(30)
+  usageStatus      String    @default("미사용") @map("usage_status") @db.VarChar(30)
+
+  // Usage tracking
+  plannedUseAt     DateTime? @map("planned_use_at")
+  actualUsedAt     DateTime? @map("actual_used_at")
+
+  // Legacy (keep for backward compat with auto-collected data)
+  isUsed           Boolean   @default(false) @map("is_used")
+  usedAt           DateTime? @map("used_at")
+  collectedAt      DateTime  @default(now()) @map("collected_at")
+  updatedAt        DateTime  @updatedAt @map("updated_at") @default(now())
+
+  // Relations
+  projectId        Int?      @map("project_id")
+
+  user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  project Project? @relation(fields: [projectId], references: [id], onDelete: SetNull)
+
   @@map("materials")
 }
 

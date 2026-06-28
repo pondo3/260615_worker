@@ -30,6 +30,7 @@ export default async function LauncherPage() {
             name: l.name,
             url: l.url,
             description: l.description,
+            tags: l.tags as string[],
             isActive: l.isActive,
             openNewTab: l.openNewTab,
             isFavorite: l.isFavorite,

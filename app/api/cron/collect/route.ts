@@ -57,22 +57,33 @@ export async function GET(request: Request) {
 
     for (const v of videos) {
       try {
-        await prisma.material.upsert({
-          where: { userId_videoId: { userId: user.id, videoId: v.videoId } },
-          create: {
-            userId: user.id,
-            videoId: v.videoId,
-            title: v.title,
-            channelName: v.channelName,
-            channelId: v.channelId,
-            viewCount: v.viewCount,
-            likeCount: v.likeCount,
-            commentCount: v.commentCount,
-            publishedAt: v.publishedAt ? new Date(v.publishedAt) : null,
-            thumbnailUrl: v.thumbnailUrl,
-          },
-          update: { viewCount: v.viewCount, likeCount: v.likeCount, commentCount: v.commentCount },
+        const videoUrl = `https://www.youtube.com/watch?v=${v.videoId}`
+        const existing = await prisma.material.findFirst({
+          where: { userId: user.id, videoId: v.videoId },
         })
+        if (existing) {
+          await prisma.material.update({
+            where: { id: existing.id },
+            data: { viewCount: v.viewCount, likeCount: v.likeCount, commentCount: v.commentCount },
+          })
+        } else {
+          await prisma.material.create({
+            data: {
+              userId: user.id,
+              url: videoUrl,
+              platform: 'youtube',
+              videoId: v.videoId,
+              originalTitle: v.title,
+              channelName: v.channelName,
+              channelId: v.channelId,
+              viewCount: v.viewCount,
+              likeCount: v.likeCount,
+              commentCount: v.commentCount,
+              uploadedAt: v.publishedAt ? new Date(v.publishedAt) : null,
+              thumbnailUrl: v.thumbnailUrl,
+            },
+          })
+        }
         totalCollected++
       } catch {
         totalSkipped++

@@ -63,6 +63,8 @@ export async function createLink(groupId: number, formData: FormData) {
   const name = (formData.get('name') as string)?.trim()
   const url = (formData.get('url') as string)?.trim()
   if (!name || !url) return
+  const tagsRaw = (formData.get('tags') as string) || ''
+  const tags = tagsRaw.split(',').map((t) => t.trim()).filter(Boolean)
   const count = await prisma.launcherLink.count({ where: { groupId } })
   await prisma.launcherLink.create({
     data: {
@@ -70,6 +72,7 @@ export async function createLink(groupId: number, formData: FormData) {
       name,
       url,
       description: (formData.get('description') as string) || null,
+      tags,
       openNewTab: formData.get('openNewTab') === 'true',
       isFavorite: formData.get('isFavorite') === 'true',
       sortOrder: count,
@@ -85,12 +88,15 @@ export async function updateLink(id: number, formData: FormData) {
   const name = (formData.get('name') as string)?.trim()
   const url = (formData.get('url') as string)?.trim()
   if (!name || !url) return
+  const tagsRaw = (formData.get('tags') as string) || ''
+  const tags = tagsRaw.split(',').map((t) => t.trim()).filter(Boolean)
   await prisma.launcherLink.update({
     where: { id },
     data: {
       name,
       url,
       description: (formData.get('description') as string) || null,
+      tags,
       openNewTab: formData.get('openNewTab') === 'true',
       isFavorite: formData.get('isFavorite') === 'true',
       isActive: formData.get('isActive') !== 'false',

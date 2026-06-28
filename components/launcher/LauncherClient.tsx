@@ -17,6 +17,7 @@ import {
   deleteFolder,
   toggleFolderActive,
 } from '@/app/actions/launcher'
+import { fetchUrlMetadata, translateToKorean } from '@/app/actions/materials'
 
 // ── 타입 정의 ──────────────────────────────────────────────────
 type LauncherLink = {
@@ -24,6 +25,7 @@ type LauncherLink = {
   name: string
   url: string
   description: string | null
+  tags: string[]
   isActive: boolean
   openNewTab: boolean
   isFavorite: boolean
@@ -173,10 +175,46 @@ function LinkModal({
   onClose: () => void
 }) {
   const [pending, startTransition] = useTransition()
+  const [fetching, setFetching] = useState(false)
+  const [name, setName] = useState(link?.name ?? '')
+  const [url, setUrl] = useState(link?.url ?? '')
+  const [description, setDescription] = useState(link?.description ?? '')
+  const [tags, setTags] = useState(link?.tags.join(', ') ?? '')
+  const [openNewTab, setOpenNewTab] = useState(link?.openNewTab ?? true)
+  const [isFavorite, setIsFavorite] = useState(link?.isFavorite ?? false)
+  const [isActive, setIsActive] = useState(link?.isActive ?? true)
+
+  async function handleFetchMeta() {
+    if (!url.trim()) return
+    setFetching(true)
+    try {
+      const meta = await fetchUrlMetadata(url.trim())
+      if (meta.originalTitle && !name) {
+        // 영어 제목이면 번역, 아니면 원본 사용
+        const translated = await translateToKorean(meta.originalTitle)
+        setName(translated ?? meta.originalTitle)
+      } else if (meta.originalTitle && name === link?.name) {
+        const translated = await translateToKorean(meta.originalTitle)
+        if (translated) setName(translated)
+      }
+      if (!description && meta.channelName) {
+        setDescription(meta.channelName)
+      }
+    } finally {
+      setFetching(false)
+    }
+  }
 
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
-    const fd = new FormData(e.currentTarget)
+    const fd = new FormData()
+    fd.set('name', name.trim())
+    fd.set('url', url.trim())
+    fd.set('description', description)
+    fd.set('tags', tags)
+    fd.set('openNewTab', String(openNewTab))
+    fd.set('isFavorite', String(isFavorite))
+    fd.set('isActive', String(isActive))
     startTransition(async () => {
       if (link) {
         await updateLink(link.id, fd)
@@ -187,94 +225,119 @@ function LinkModal({
     })
   }
 
+  const inp = 'w-full px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-violet-500'
+
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-xl w-full max-w-md">
-        <div className="p-6">
-          <h2 className="text-lg font-bold text-gray-900 dark:text-white mb-4">
+      <div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-xl w-full max-w-md max-h-[90vh] flex flex-col">
+        <div className="p-6 pb-4 flex-shrink-0">
+          <h2 className="text-lg font-bold text-gray-900 dark:text-white">
             {link ? '링크 수정' : '링크 추가'}
           </h2>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">이름 *</label>
+        </div>
+
+        <form id="link-modal-form" onSubmit={handleSubmit} className="flex-1 overflow-y-auto px-6 space-y-4">
+          {/* URL + 자동 가져오기 */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">URL *</label>
+            <div className="flex gap-2">
               <input
-                name="name"
-                defaultValue={link?.name ?? ''}
-                required
-                className="w-full px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-violet-500"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">URL *</label>
-              <input
-                name="url"
+                value={url}
+                onChange={(e) => setUrl(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), handleFetchMeta())}
                 type="url"
-                defaultValue={link?.url ?? ''}
                 required
                 placeholder="https://..."
-                className="w-full px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-violet-500"
+                className={`${inp} flex-1`}
               />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">설명</label>
-              <textarea
-                name="description"
-                defaultValue={link?.description ?? ''}
-                rows={2}
-                className="w-full px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 resize-none"
-              />
-            </div>
-            <div className="flex gap-4">
-              <label className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300 cursor-pointer">
-                <input
-                  type="checkbox"
-                  name="openNewTab"
-                  value="true"
-                  defaultChecked={link?.openNewTab ?? true}
-                  className="rounded"
-                />
-                새 탭에서 열기
-              </label>
-              <label className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300 cursor-pointer">
-                <input
-                  type="checkbox"
-                  name="isFavorite"
-                  value="true"
-                  defaultChecked={link?.isFavorite ?? false}
-                  className="rounded"
-                />
-                즐겨찾기
-              </label>
-              {link && (
-                <label className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    name="isActive"
-                    value="true"
-                    defaultChecked={link.isActive}
-                    className="rounded"
-                  />
-                  활성
-                </label>
-              )}
-            </div>
-            <div className="flex gap-2 pt-2">
               <button
                 type="button"
-                onClick={onClose}
-                className="flex-1 px-4 py-2 rounded-xl border border-gray-200 dark:border-gray-700 text-sm font-bold text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+                onClick={handleFetchMeta}
+                disabled={fetching || !url.trim()}
+                className="px-3 py-2 rounded-xl bg-violet-100 dark:bg-violet-900/30 text-violet-600 dark:text-violet-400 text-xs font-bold hover:bg-violet-200 disabled:opacity-40 transition-colors whitespace-nowrap flex-shrink-0"
               >
-                취소
-              </button>
-              <button
-                type="submit"
-                disabled={pending}
-                className="flex-1 px-4 py-2 rounded-xl bg-violet-600 hover:bg-violet-700 disabled:opacity-50 text-white text-sm font-bold transition-colors"
-              >
-                {pending ? '저장 중...' : '저장'}
+                {fetching ? '가져오는 중...' : '제목 가져오기'}
               </button>
             </div>
-          </form>
+            <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-1">YouTube 링크는 제목을 자동으로 한글로 번역합니다</p>
+          </div>
+
+          {/* 이름 */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">이름 *</label>
+            <input
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              required
+              placeholder="링크 이름"
+              className={inp}
+            />
+          </div>
+
+          {/* 설명 */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">설명</label>
+            <textarea
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              rows={2}
+              className={`${inp} resize-none`}
+            />
+          </div>
+
+          {/* 태그 */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">태그 <span className="text-gray-400 font-normal">(쉼표로 구분)</span></label>
+            <input
+              value={tags}
+              onChange={(e) => setTags(e.target.value)}
+              placeholder="예: 유튜브, 레퍼런스, 마케팅"
+              className={inp}
+            />
+            {tags && (
+              <div className="flex flex-wrap gap-1 mt-2">
+                {tags.split(',').map((t) => t.trim()).filter(Boolean).map((t) => (
+                  <span key={t} className="text-[10px] px-2 py-0.5 rounded-full bg-violet-100 dark:bg-violet-900/30 text-violet-600 dark:text-violet-400 font-medium">{t}</span>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* 체크박스들 */}
+          <div className="flex flex-wrap gap-4 pb-2">
+            <label className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300 cursor-pointer">
+              <input type="checkbox" checked={openNewTab} onChange={(e) => setOpenNewTab(e.target.checked)} className="rounded" />
+              새 탭에서 열기
+            </label>
+            <label className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300 cursor-pointer">
+              <input type="checkbox" checked={isFavorite} onChange={(e) => setIsFavorite(e.target.checked)} className="rounded" />
+              즐겨찾기
+            </label>
+            {link && (
+              <label className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300 cursor-pointer">
+                <input type="checkbox" checked={isActive} onChange={(e) => setIsActive(e.target.checked)} className="rounded" />
+                활성
+              </label>
+            )}
+          </div>
+        </form>
+
+        <div className="flex gap-2 p-6 pt-4 flex-shrink-0 border-t border-gray-100 dark:border-gray-800">
+          <button
+            type="button"
+            onClick={onClose}
+            className="flex-1 px-4 py-2 rounded-xl border border-gray-200 dark:border-gray-700 text-sm font-bold text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+          >
+            취소
+          </button>
+          <button
+            type="submit"
+            form="link-modal-form"
+            disabled={pending}
+            className="flex-1 px-4 py-2 rounded-xl bg-violet-600 hover:bg-violet-700 disabled:opacity-50 text-white text-sm font-bold transition-colors"
+          >
+            {pending ? '저장 중...' : '저장'}
+          </button>
         </div>
       </div>
     </div>
@@ -388,8 +451,27 @@ export default function LauncherClient({ groups }: { groups: LauncherGroup[] }) 
   const [copiedFolderId, setCopiedFolderId] = useState<number | null>(null)
   const [pending, startTransition] = useTransition()
   const [faviconErrors, setFaviconErrors] = useState<Set<number>>(new Set())
+  const [search, setSearch] = useState('')
 
   const selectedGroup = groups.find((g) => g.id === selectedGroupId) ?? null
+
+  // 검색 결과: 모든 그룹에서 검색
+  const allLinks: (LauncherLink & { groupName: string; groupColor: string })[] = groups.flatMap((g) =>
+    g.links.map((l) => ({ ...l, groupName: g.name, groupColor: g.color }))
+  )
+  const searchActive = search.trim().length > 0
+  const searchResults = searchActive
+    ? allLinks.filter((l) => {
+        const q = search.toLowerCase()
+        return (
+          l.name.toLowerCase().includes(q) ||
+          l.url.toLowerCase().includes(q) ||
+          (l.description ?? '').toLowerCase().includes(q) ||
+          l.tags.some((t) => t.toLowerCase().includes(q))
+        )
+      })
+    : []
+
   const activeLinks = selectedGroup?.links.filter((l) => l.isActive) ?? []
 
   function openLinks(links: LauncherLink[]) {
@@ -480,19 +562,83 @@ export default function LauncherClient({ groups }: { groups: LauncherGroup[] }) 
   return (
     <div>
       {/* ── 헤더 배너 ── */}
-      <div className="bg-violet-950 rounded-2xl mb-6 p-6 flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-black text-white mb-1">업무 런처</h1>
-          <p className="text-violet-300 text-sm">업무별 사이트와 폴더를 한번에 실행하세요</p>
+      <div className="bg-violet-950 rounded-2xl mb-6 p-6">
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h1 className="text-2xl font-black text-white mb-1">업무 런처</h1>
+            <p className="text-violet-300 text-sm">업무별 사이트와 폴더를 한번에 실행하세요</p>
+          </div>
+          <button
+            onClick={() => setGroupModal({ open: true })}
+            disabled={pending}
+            className="px-4 py-2 rounded-xl bg-violet-600 hover:bg-violet-500 disabled:opacity-50 text-white text-sm font-bold transition-colors"
+          >
+            + 그룹 추가
+          </button>
         </div>
-        <button
-          onClick={() => setGroupModal({ open: true })}
-          disabled={pending}
-          className="px-4 py-2 rounded-xl bg-violet-600 hover:bg-violet-500 disabled:opacity-50 text-white text-sm font-bold transition-colors"
-        >
-          + 그룹 추가
-        </button>
+        {/* 전체 검색 */}
+        <div className="relative">
+          <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-violet-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+          </svg>
+          <input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="링크 이름, URL, 태그로 검색..."
+            className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-violet-900/60 border border-violet-700 text-white placeholder-violet-400 text-sm focus:outline-none focus:ring-2 focus:ring-violet-400"
+          />
+          {search && (
+            <button onClick={() => setSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-violet-400 hover:text-white transition-colors">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+            </button>
+          )}
+        </div>
       </div>
+
+      {/* ── 검색 결과 ── */}
+      {searchActive && (
+        <div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm p-6 mb-4">
+          <p className="text-sm font-bold text-gray-700 dark:text-gray-300 mb-3">
+            검색 결과 <span className="text-violet-500">{searchResults.length}개</span>
+            <span className="text-xs font-normal text-gray-400 ml-2">"{search}"</span>
+          </p>
+          {searchResults.length === 0 ? (
+            <p className="text-sm text-gray-400 py-4 text-center">검색 결과가 없습니다.</p>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+              {searchResults.map((link) => {
+                const faviconUrl = getFavicon(link.url)
+                const hasFaviconError = faviconErrors.has(link.id)
+                return (
+                  <div key={link.id} className="bg-gray-50 dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-3 flex flex-col gap-2">
+                    <div className="flex items-center gap-2">
+                      <div className="w-6 h-6 flex-shrink-0 flex items-center justify-center">
+                        {faviconUrl && !hasFaviconError ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img src={faviconUrl} alt="" width={24} height={24} className="rounded" onError={() => setFaviconErrors((prev) => new Set(prev).add(link.id))} />
+                        ) : <span className="text-base">🌐</span>}
+                      </div>
+                      <button
+                        onClick={() => handleLinkClick(link)}
+                        className="flex-1 min-w-0 text-left"
+                      >
+                        <p className="text-xs font-bold text-gray-900 dark:text-white truncate hover:text-violet-600 dark:hover:text-violet-400 transition-colors">{link.name}</p>
+                        <p className="text-[10px] text-gray-400 truncate">{link.url}</p>
+                      </button>
+                    </div>
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <span className="text-[9px] px-1.5 py-0.5 rounded-full font-semibold text-white" style={{ backgroundColor: link.groupColor }}>{link.groupName}</span>
+                      {link.tags.map((t) => (
+                        <span key={t} className="text-[9px] px-1.5 py-0.5 rounded-full bg-violet-100 dark:bg-violet-900/30 text-violet-600 dark:text-violet-400">{t}</span>
+                      ))}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* ── 그룹 없음 ── */}
       {groups.length === 0 ? (
@@ -669,6 +815,15 @@ export default function LauncherClient({ groups }: { groups: LauncherGroup[] }) 
                         {/* 설명 */}
                         {link.description && (
                           <p className="text-xs text-gray-500 dark:text-gray-400">{link.description}</p>
+                        )}
+
+                        {/* 태그 */}
+                        {link.tags.length > 0 && (
+                          <div className="flex flex-wrap gap-1">
+                            {link.tags.map((t) => (
+                              <span key={t} className="text-[10px] px-1.5 py-0.5 rounded-full bg-violet-100 dark:bg-violet-900/30 text-violet-600 dark:text-violet-400 font-medium">{t}</span>
+                            ))}
+                          </div>
                         )}
 
                         {/* 메타 정보 */}
