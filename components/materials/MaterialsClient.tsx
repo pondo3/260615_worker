@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback, useRef, useTransition } from 'react'
+import { useState } from 'react'
 import {
   addChannel, toggleChannel, deleteChannel,
   saveCollectionRules, deleteCollectionRule,
@@ -561,8 +561,14 @@ function MatRow({ mat, checked, onCheck, onSelect, selected }: {
       className={`border-b border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800/50 cursor-pointer transition-colors ${selected ? 'bg-blue-50/60 dark:bg-blue-900/10' : ''}`}
       onClick={onSelect}
     >
-      <td className="px-3 py-2 sticky left-0 bg-inherit" onClick={(e) => { e.stopPropagation(); onCheck() }}>
-        <input type="checkbox" checked={checked} onChange={onCheck} className="w-3.5 h-3.5 rounded" />
+      <td className="px-3 py-2 sticky left-0 bg-inherit">
+        <input
+          type="checkbox"
+          checked={checked}
+          onChange={onCheck}
+          onClick={(e) => e.stopPropagation()}
+          className="w-3.5 h-3.5 rounded cursor-pointer"
+        />
       </td>
       <td className="px-2 py-2">
         {mat.thumbnailUrl ? (
@@ -633,7 +639,6 @@ export default function MaterialsClient({
   const [filterUsage, setFilterUsage] = useState('all')
   const [filterStatus, setFilterStatus] = useState('all')
   const [search, setSearch] = useState('')
-  const [, startTransition] = useTransition()
 
   const filtered = materials.filter((m) => {
     if (filterPlatform !== 'all' && m.platform !== filterPlatform) return false
@@ -661,19 +666,27 @@ export default function MaterialsClient({
     setSelected((prev) => prev?.id === id ? { ...prev, ...data } : prev)
   }
 
-  function handleDelete(id: number) {
-    startTransition(async () => {
+  async function handleDelete(id: number) {
+    if (!confirm('이 소재를 삭제할까요?')) return
+    try {
       await deleteMaterial(id)
       setMaterials((prev) => prev.filter((m) => m.id !== id))
       if (selected?.id === id) setSelected(null)
-    })
+    } catch {
+      alert('삭제 중 오류가 발생했습니다.')
+    }
   }
 
   async function handleBulkDelete() {
-    const ids = Array.from(checked)
-    await bulkDeleteMaterials(ids)
-    setMaterials((prev) => prev.filter((m) => !ids.includes(m.id)))
-    setChecked(new Set())
+    if (!confirm(`선택한 ${checked.size}개를 삭제할까요?`)) return
+    try {
+      const ids = Array.from(checked)
+      await bulkDeleteMaterials(ids)
+      setMaterials((prev) => prev.filter((m) => !ids.includes(m.id)))
+      setChecked(new Set())
+    } catch {
+      alert('삭제 중 오류가 발생했습니다.')
+    }
   }
 
   async function refreshList() {
