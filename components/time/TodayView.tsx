@@ -2,7 +2,8 @@
 
 import { useEffect, useRef, useState, useCallback } from 'react'
 import type { TimeBlockWithRefs } from '@/app/actions/timeblocks'
-import { calcDurationMin, toggleTimeBlockDone, deleteTimeBlock } from '@/app/actions/timeblocks'
+import { toggleTimeBlockDone, deleteTimeBlock } from '@/app/actions/timeblocks'
+import { calcDurationMin } from '@/lib/timeUtils'
 
 const HOUR_HEIGHT = 64   // px per hour
 const START_HOUR = 6     // 06:00부터 시작

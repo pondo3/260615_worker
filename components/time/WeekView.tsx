@@ -1,7 +1,7 @@
 'use client'
 
 import type { TimeBlockWithRefs } from '@/app/actions/timeblocks'
-import { calcDurationMin } from '@/app/actions/timeblocks'
+import { calcDurationMin } from '@/lib/timeUtils'
 
 const HOUR_HEIGHT = 48
 const START_HOUR = 7

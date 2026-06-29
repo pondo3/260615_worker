@@ -3,9 +3,9 @@
 import { useState, useTransition } from 'react'
 import {
   createTimeBlock, updateTimeBlock, deleteTimeBlock,
-  BLOCK_TYPES, BLOCK_TYPE_COLORS,
   type TimeBlockWithRefs,
 } from '@/app/actions/timeblocks'
+import { BLOCK_TYPES, BLOCK_TYPE_COLORS } from '@/lib/timeUtils'
 
 type Task = { id: number; title: string; importance: string; estimatedMinutes: number | null }
 type Project = { id: number; title: string; color: string }
