@@ -3,7 +3,7 @@ import { prisma } from '@/lib/prisma'
 import TimeManagementClient from '@/components/time/TimeManagementClient'
 import { getTimeBlocks, getWeekTimeBlocks } from '@/app/actions/timeblocks'
 
-type SearchParams = { date?: string; view?: string }
+type SearchParams = Promise<{ date?: string; view?: string }>
 
 function parseDate(dateStr: string | undefined): string {
   if (dateStr && /^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
@@ -25,7 +25,8 @@ export default async function TimePage({ searchParams }: { searchParams: SearchP
   const session = await verifySession()
   const userId = session.userId
 
-  const selectedDate = parseDate(searchParams.date)
+  const sp = await searchParams
+  const selectedDate = parseDate(sp.date)
   const weekStart = getWeekStart(selectedDate)
 
   const today = new Date()
@@ -86,7 +87,7 @@ export default async function TimePage({ searchParams }: { searchParams: SearchP
   return (
     <TimeManagementClient
       initialDate={selectedDate}
-      initialView={(searchParams.view as 'today' | 'week' | 'list') ?? 'today'}
+      initialView={(sp.view as 'today' | 'week' | 'list') ?? 'today'}
       timeBlocks={serialize(timeBlocks)}
       weekBlocks={serialize(weekBlocks)}
       weekStart={weekStart}
