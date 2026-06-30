@@ -62,6 +62,7 @@ export default function TimeBlockModal({ block, defaultDate, defaultTime, defaul
   const [taskId, setTaskId] = useState<number | ''>(block?.taskId ?? defaultValues?.taskId ?? '')
   const [projectId, setProjectId] = useState<number | ''>(block?.projectId ?? '')
   const [routineId, setRoutineId] = useState<number | ''>(block?.routineId ?? defaultValues?.routineId ?? '')
+  const [isFixed, setIsFixed] = useState(false)
   const [error, setError] = useState('')
 
   const color = BLOCK_TYPE_COLORS[blockType] ?? '#6366F1'
@@ -98,6 +99,20 @@ export default function TimeBlockModal({ block, defaultDate, defaultTime, defaul
       }
 
       if (result.ok) {
+        // 새 블록이고 고정 옵션이 켜져 있으면 localStorage에 템플릿 저장
+        if (!isEdit && isFixed) {
+          try {
+            const stored = localStorage.getItem('fixed_time_blocks')
+            const templates: Array<{ title: string; startTime: string; endTime: string; blockType: string; color: string }> =
+              stored ? JSON.parse(stored) : []
+            // 중복 방지: 같은 제목+시간 조합이 없을 때만 추가
+            const exists = templates.some((t) => t.title === title && t.startTime === startTime)
+            if (!exists) {
+              templates.push({ title, startTime, endTime, blockType, color })
+              localStorage.setItem('fixed_time_blocks', JSON.stringify(templates))
+            }
+          } catch { /* ignore */ }
+        }
         onSaved()
       } else {
         setError(result.error ?? '저장 실패')
@@ -338,6 +353,23 @@ export default function TimeBlockModal({ block, defaultDate, defaultTime, defaul
               className="w-full px-3 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
             />
           </div>
+
+          {/* 매일 고정 (새 블록에서만 표시) */}
+          {!isEdit && (
+            <div className={`flex items-center gap-3 p-3 rounded-xl border transition-colors ${isFixed ? 'bg-amber-50 dark:bg-amber-900/20 border-amber-300 dark:border-amber-700' : 'bg-gray-50 dark:bg-gray-800 border-transparent'}`}>
+              <button
+                type="button"
+                onClick={() => setIsFixed(!isFixed)}
+                className={`relative w-10 h-5 rounded-full transition-colors flex-shrink-0 ${isFixed ? 'bg-amber-500' : 'bg-gray-300 dark:bg-gray-600'}`}
+              >
+                <div className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${isFixed ? 'translate-x-5' : 'translate-x-0.5'}`} />
+              </button>
+              <div className="flex-1">
+                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">📌 매일 고정</span>
+                <p className="text-[11px] text-gray-400 mt-0.5">매일 같은 시간에 자동으로 블록이 생성됩니다</p>
+              </div>
+            </div>
+          )}
 
           {/* 알림 */}
           <div className="flex items-center gap-3 p-3 rounded-xl bg-gray-50 dark:bg-gray-800">

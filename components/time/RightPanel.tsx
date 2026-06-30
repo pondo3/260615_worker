@@ -1,6 +1,8 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+
+type FixedTemplate = { title: string; startTime: string; endTime: string; blockType: string; color: string }
 
 type Task = { id: number; title: string; importance: string; dueTime: string | null; estimatedMinutes: number | null }
 type Routine = { id: number; title: string; timeOfDay: string | null; frequency: string; color: string }
@@ -17,7 +19,7 @@ type Props = {
   onRefresh: () => void
 }
 
-type Section = 'tasks' | 'routines' | 'projects'
+type Section = 'tasks' | 'routines' | 'projects' | 'fixed'
 
 const IMPORTANCE_COLOR: Record<string, string> = {
   high: 'text-red-500',
@@ -29,6 +31,20 @@ export default function RightPanel({
   tasks, routines, doneRoutineIds, projects, scheduledBlockTaskIds, onScheduleTask, onScheduleRoutine,
 }: Props) {
   const [section, setSection] = useState<Section>('tasks')
+  const [fixedTemplates, setFixedTemplates] = useState<FixedTemplate[]>([])
+
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem('fixed_time_blocks')
+      if (stored) setFixedTemplates(JSON.parse(stored))
+    } catch { /* ignore */ }
+  }, [])
+
+  function removeFixed(idx: number) {
+    const updated = fixedTemplates.filter((_, i) => i !== idx)
+    setFixedTemplates(updated)
+    localStorage.setItem('fixed_time_blocks', JSON.stringify(updated))
+  }
 
   const unscheduledTasks = tasks.filter((t) => !scheduledBlockTaskIds.includes(t.id))
   const scheduledTasks = tasks.filter((t) => scheduledBlockTaskIds.includes(t.id))
@@ -42,6 +58,7 @@ export default function RightPanel({
             { key: 'tasks', label: '할 일', count: unscheduledTasks.length },
             { key: 'routines', label: '루틴', count: routines.length },
             { key: 'projects', label: '프로젝트', count: projects.length },
+            { key: 'fixed', label: '📌고정', count: fixedTemplates.length },
           ] as const).map((tab) => (
             <button
               key={tab.key}
@@ -182,6 +199,37 @@ export default function RightPanel({
                 </div>
               )
             })}
+          </div>
+        )}
+
+        {/* 고정 블록 */}
+        {section === 'fixed' && (
+          <div className="p-3 space-y-2">
+            <p className="text-[10px] text-gray-400 px-1">매일 자동 생성되는 고정 블록 목록입니다</p>
+            {fixedTemplates.length === 0 && (
+              <div className="text-center py-8 text-gray-400 dark:text-gray-600">
+                <p className="text-sm">고정된 블록이 없습니다</p>
+                <p className="text-[11px] mt-1 text-gray-500">블록 추가 시 &quot;매일 고정&quot;을 켜세요</p>
+              </div>
+            )}
+            {fixedTemplates.map((t, idx) => (
+              <div key={idx} className="flex items-center gap-2 p-2 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800">
+                <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: t.color }} />
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-semibold text-gray-800 dark:text-gray-200 truncate">{t.title}</p>
+                  <p className="text-[10px] text-gray-500">{t.startTime}–{t.endTime} · {t.blockType}</p>
+                </div>
+                <button
+                  onClick={() => removeFixed(idx)}
+                  className="p-1 rounded text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                  title="고정 해제"
+                >
+                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+            ))}
           </div>
         )}
 

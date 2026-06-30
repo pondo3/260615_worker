@@ -1,9 +1,9 @@
 'use client'
 
-import { useState, useCallback, useTransition } from 'react'
+import { useState, useCallback, useTransition, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import type { TimeBlockWithRefs } from '@/app/actions/timeblocks'
-import { toggleTimeBlockDone, deleteTimeBlock } from '@/app/actions/timeblocks'
+import { toggleTimeBlockDone, deleteTimeBlock, createTimeBlock } from '@/app/actions/timeblocks'
 import { calcDurationMin } from '@/lib/timeUtils'
 import TodayView from '@/components/time/TodayView'
 import WeekView from '@/components/time/WeekView'
@@ -101,6 +101,45 @@ export default function TimeManagementClient({
 
   const today = new Date().toISOString().split('T')[0]
   const selectedDate = initialDate
+  const seededDates = useRef<Set<string>>(new Set())
+
+  // 고정 블록 자동 생성: 날짜가 바뀔 때마다 localStorage 템플릿 확인
+  useEffect(() => {
+    if (seededDates.current.has(selectedDate)) return
+    seededDates.current.add(selectedDate)
+
+    // 과거 날짜에는 자동 생성 안 함
+    if (selectedDate < today) return
+
+    let templates: Array<{ title: string; startTime: string; endTime: string; blockType: string; color: string }>
+    try {
+      const stored = localStorage.getItem('fixed_time_blocks')
+      templates = stored ? JSON.parse(stored) : []
+    } catch {
+      return
+    }
+    if (templates.length === 0) return
+
+    const missing = templates.filter(
+      (t) => !timeBlocks.some((b) => b.startTime === t.startTime && b.title === t.title)
+    )
+    if (missing.length === 0) return
+
+    Promise.all(
+      missing.map((t) =>
+        createTimeBlock({
+          title: t.title,
+          date: selectedDate,
+          startTime: t.startTime,
+          endTime: t.endTime,
+          blockType: t.blockType,
+          color: t.color,
+          importance: 'medium',
+          status: 'planned',
+        })
+      )
+    ).then(() => startTransition(() => router.refresh()))
+  }, [selectedDate])
 
   const navigate = useCallback((newDate: string, newView?: View) => {
     const params = new URLSearchParams()

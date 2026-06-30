@@ -5,7 +5,7 @@ import type { TimeBlockWithRefs } from '@/app/actions/timeblocks'
 import { toggleTimeBlockDone, deleteTimeBlock } from '@/app/actions/timeblocks'
 import { calcDurationMin } from '@/lib/timeUtils'
 
-const HOUR_HEIGHT = 64   // px per hour
+const HOUR_HEIGHT = 48   // px per hour
 const START_HOUR = 6     // 06:00부터 시작
 const END_HOUR = 24      // 24:00까지
 
