@@ -109,6 +109,7 @@ export default function RecordListClient({ records }: { records: RecordItem[] })
   const [editingRecord, setEditingRecord] = useState<RecordForEdit | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
   const [view, setView] = useState<'list' | 'card'>('list')
+  const [copied, setCopied] = useState(false)
 
   useEffect(() => {
     const s = localStorage.getItem('view_records')
@@ -165,6 +166,13 @@ export default function RecordListClient({ records }: { records: RecordItem[] })
   }
 
   const handleCloseModal = () => { setShowModal(false); setEditingRecord(null) }
+
+  const handleCopy = async (r: RecordItem) => {
+    const text = [r.title, r.content ? stripHtml(r.content) : ''].filter(Boolean).join('\n\n')
+    await navigator.clipboard.writeText(text)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+  }
 
   return (
     <div className="h-full flex flex-col p-8">
@@ -383,6 +391,19 @@ export default function RecordListClient({ records }: { records: RecordItem[] })
               <TypeBadge type={selectedRecord.type} />
               <span className="text-xs text-gray-400 dark:text-gray-500">{selectedRecord.date}</span>
               <div className="flex-1" />
+              <button onClick={() => handleCopy(selectedRecord)}
+                className={`p-1.5 rounded-lg transition-colors ${copied ? 'text-green-500 bg-green-50 dark:bg-green-900/20' : 'text-gray-400 hover:text-blue-500 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20'}`}
+                title="복사">
+                {copied ? (
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                ) : (
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                  </svg>
+                )}
+              </button>
               <button onClick={() => handleEditById(selectedRecord)}
                 className="p-1.5 rounded-lg text-gray-400 hover:text-amber-600 dark:hover:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-900/20 transition-colors"
                 title="수정">
