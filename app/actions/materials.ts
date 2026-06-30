@@ -201,12 +201,13 @@ export async function translateToKorean(text: string): Promise<string | null> {
   if (!isEnglishTitle(text)) return null
   try {
     const res = await fetch(
-      `https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=en|ko`,
+      `https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=ko&dt=t&q=${encodeURIComponent(text)}`,
       { next: { revalidate: 0 } }
     )
     if (!res.ok) return null
     const data = await res.json()
-    const translated: string = data.responseData?.translatedText
+    // Response: [[["번역","원본",...], ...], ...]
+    const translated: string = data?.[0]?.map((item: [string]) => item[0]).join('') ?? ''
     if (!translated || translated === text) return null
     return translated
   } catch {
