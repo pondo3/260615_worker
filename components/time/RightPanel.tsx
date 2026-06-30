@@ -13,6 +13,7 @@ type Props = {
   projects: Project[]
   scheduledBlockTaskIds: number[]
   onScheduleTask: (task: Task) => void
+  onScheduleRoutine: (routine: Routine) => void
   onRefresh: () => void
 }
 
@@ -25,7 +26,7 @@ const IMPORTANCE_COLOR: Record<string, string> = {
 }
 
 export default function RightPanel({
-  tasks, routines, doneRoutineIds, projects, scheduledBlockTaskIds, onScheduleTask,
+  tasks, routines, doneRoutineIds, projects, scheduledBlockTaskIds, onScheduleTask, onScheduleRoutine,
 }: Props) {
   const [section, setSection] = useState<Section>('tasks')
 
@@ -75,18 +76,20 @@ export default function RightPanel({
 
             {unscheduledTasks.length > 0 && (
               <div>
-                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wide mb-2 px-1">미배치 할 일</p>
+                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wide mb-2 px-1">미배치 할 일 <span className="normal-case font-normal">(클릭하면 배치)</span></p>
                 {unscheduledTasks.map((task) => (
-                  <div
+                  <button
                     key={task.id}
-                    className="flex items-center gap-2 p-2 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors group"
+                    onClick={() => onScheduleTask(task)}
+                    className="w-full flex items-center gap-2 p-2 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors group text-left"
+                    title="클릭하여 시간표에 배치"
                   >
                     <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${
                       task.importance === 'high' ? 'bg-red-500' :
                       task.importance === 'medium' ? 'bg-amber-500' : 'bg-gray-400'
                     }`} />
                     <div className="flex-1 min-w-0">
-                      <p className="text-xs font-medium text-gray-700 dark:text-gray-300 truncate">{task.title}</p>
+                      <p className="text-xs font-medium text-gray-700 dark:text-gray-300 group-hover:text-blue-600 dark:group-hover:text-blue-400 truncate">{task.title}</p>
                       {task.estimatedMinutes && (
                         <p className="text-[10px] text-gray-400">
                           예상 {task.estimatedMinutes >= 60
@@ -95,16 +98,10 @@ export default function RightPanel({
                         </p>
                       )}
                     </div>
-                    <button
-                      onClick={() => onScheduleTask(task)}
-                      className="opacity-0 group-hover:opacity-100 p-1 rounded-md bg-blue-50 dark:bg-blue-900/30 text-blue-500 hover:bg-blue-100 transition-all"
-                      title="시간표에 배치"
-                    >
-                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                      </svg>
-                    </button>
-                  </div>
+                    <svg className="w-3.5 h-3.5 text-blue-400 opacity-0 group-hover:opacity-100 flex-shrink-0 transition-opacity" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                    </svg>
+                  </button>
                 ))}
               </div>
             )}
@@ -136,17 +133,16 @@ export default function RightPanel({
                 <p className="text-sm">오늘 루틴이 없습니다</p>
               </div>
             )}
+            {routines.length > 0 && (
+              <p className="text-[10px] text-gray-400 px-1 mb-2">클릭하면 시간표에 배치됩니다</p>
+            )}
             {routines.map((r) => {
               const done = doneRoutineIds.includes(r.id)
+              const isFixed = !!r.timeOfDay
               return (
-                <div
-                  key={r.id}
-                  className={`flex items-center gap-2.5 p-2 rounded-lg transition-colors ${
-                    done ? 'opacity-60' : 'hover:bg-gray-50 dark:hover:bg-gray-800'
-                  }`}
-                >
+                <div key={r.id} className={`flex items-center gap-2.5 p-2 rounded-lg transition-colors group ${done ? 'opacity-60' : ''}`}>
                   <div
-                    className={`w-4 h-4 rounded-full flex-shrink-0 flex items-center justify-center border-2 transition-colors`}
+                    className="w-4 h-4 rounded-full flex-shrink-0 flex items-center justify-center border-2 transition-colors"
                     style={done
                       ? { backgroundColor: r.color, borderColor: r.color }
                       : { borderColor: r.color }}
@@ -158,16 +154,31 @@ export default function RightPanel({
                     )}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className={`text-xs font-medium truncate ${
-                      done ? 'line-through text-gray-400' : 'text-gray-700 dark:text-gray-300'
-                    }`}>{r.title}</p>
-                    {r.timeOfDay && (
-                      <p className="text-[10px] text-gray-400">{r.timeOfDay}</p>
-                    )}
+                    <div className="flex items-center gap-1">
+                      <p className={`text-xs font-medium truncate ${
+                        done ? 'line-through text-gray-400' : 'text-gray-700 dark:text-gray-300'
+                      }`}>{r.title}</p>
+                      {isFixed && (
+                        <svg className="w-2.5 h-2.5 text-amber-500 flex-shrink-0" fill="currentColor" viewBox="0 0 24 24">
+                          <path d="M12 2C10.34 2 9 3.34 9 5v1H5v2h1.22l1.68 8H16.1l1.68-8H19V6h-4V5c0-1.66-1.34-3-3-3zm0 2c.55 0 1 .45 1 1v1h-2V5c0-.55.45-1 1-1zm-1 14v2h2v-2h-2z"/>
+                        </svg>
+                      )}
+                    </div>
+                    <p className="text-[10px] text-gray-400">
+                      {r.timeOfDay ? `고정 ${r.timeOfDay}` : (r.frequency === 'daily' ? '매일' : r.frequency === 'weekly' ? '주간' : '월간')}
+                    </p>
                   </div>
-                  <span className="text-[9px] text-gray-400 flex-shrink-0">
-                    {r.frequency === 'daily' ? '매일' : r.frequency === 'weekly' ? '주간' : '월간'}
-                  </span>
+                  {!done && (
+                    <button
+                      onClick={() => onScheduleRoutine(r)}
+                      className="opacity-0 group-hover:opacity-100 p-1 rounded-md bg-amber-50 dark:bg-amber-900/30 text-amber-600 hover:bg-amber-100 dark:hover:bg-amber-900/50 transition-all flex-shrink-0"
+                      title="시간표에 배치"
+                    >
+                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                      </svg>
+                    </button>
+                  )}
                 </div>
               )
             })}

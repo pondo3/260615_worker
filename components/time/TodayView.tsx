@@ -74,10 +74,11 @@ type Props = {
 
 export default function TodayView({ date, blocks, weekBlocks, weekStart, onEdit, onCreateAt, onRefresh }: Props) {
   const timelineRef = useRef<HTMLDivElement>(null)
+  const scrollRef = useRef<HTMLDivElement>(null)
   const [nowY, setNowY] = useState<number | null>(null)
   const [clickGuide, setClickGuide] = useState<{ y: number; time: string } | null>(null)
 
-  // 현재 시각 인디케이터
+  // 현재 시각 인디케이터 + 자동 스크롤
   useEffect(() => {
     function update() {
       const now = new Date()
@@ -89,6 +90,16 @@ export default function TodayView({ date, blocks, weekBlocks, weekStart, onEdit,
     }
     update()
     const id = setInterval(update, 60_000)
+
+    // 현재 시각으로 스크롤
+    const now = new Date()
+    const h = now.getHours()
+    const m = now.getMinutes()
+    if (scrollRef.current && h >= START_HOUR) {
+      const y = ((h - START_HOUR) * 60 + m) / 60 * HOUR_HEIGHT
+      scrollRef.current.scrollTop = Math.max(0, y - 120)
+    }
+
     return () => clearInterval(id)
   }, [])
 
@@ -141,7 +152,7 @@ export default function TodayView({ date, blocks, weekBlocks, weekStart, onEdit,
   return (
     <div className="flex h-full min-h-0">
       {/* ── 타임라인 ── */}
-      <div className="flex-1 overflow-y-auto">
+      <div ref={scrollRef} className="flex-1 overflow-y-auto bg-white dark:bg-gray-900">
         <div className="flex min-w-0">
           {/* 시간 레이블 */}
           <div className="flex-shrink-0 w-14 select-none">
@@ -174,7 +185,7 @@ export default function TodayView({ date, blocks, weekBlocks, weekStart, onEdit,
             {Array.from({ length: END_HOUR - START_HOUR }, (_, i) => (
               <div
                 key={i}
-                className="absolute left-0 right-0 border-t border-gray-100 dark:border-gray-800"
+                className="absolute left-0 right-0 border-t border-gray-200 dark:border-gray-700"
                 style={{ top: i * HOUR_HEIGHT }}
               />
             ))}
@@ -182,7 +193,7 @@ export default function TodayView({ date, blocks, weekBlocks, weekStart, onEdit,
             {Array.from({ length: END_HOUR - START_HOUR }, (_, i) => (
               <div
                 key={`half-${i}`}
-                className="absolute left-0 right-0 border-t border-dashed border-gray-50 dark:border-gray-800/50"
+                className="absolute left-0 right-0 border-t border-dashed border-gray-100 dark:border-gray-800"
                 style={{ top: i * HOUR_HEIGHT + HOUR_HEIGHT / 2 }}
               />
             ))}

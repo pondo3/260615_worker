@@ -15,6 +15,7 @@ type Props = {
   block: TimeBlockWithRefs | null
   defaultDate: string
   defaultTime: { startTime: string; endTime: string } | null
+  defaultValues?: { title?: string; taskId?: number; routineId?: number; blockType?: string } | null
   tasks: Task[]
   projects: Project[]
   routines: Routine[]
@@ -41,26 +42,26 @@ function defaultHour(): string {
   return `${String(next).padStart(2, '0')}:00`
 }
 
-export default function TimeBlockModal({ block, defaultDate, defaultTime, tasks, projects, routines, onClose, onSaved }: Props) {
+export default function TimeBlockModal({ block, defaultDate, defaultTime, defaultValues, tasks, projects, routines, onClose, onSaved }: Props) {
   const isEdit = block !== null
   const [pending, startTransition] = useTransition()
 
-  const [title, setTitle] = useState(block?.title ?? '')
+  const [title, setTitle] = useState(block?.title ?? defaultValues?.title ?? '')
   const [date, setDate] = useState(block?.date ?? defaultDate)
   const [startTime, setStartTime] = useState(block?.startTime ?? defaultTime?.startTime ?? defaultHour())
   const [endTime, setEndTime] = useState(block?.endTime ?? defaultTime?.endTime ?? (() => {
     const h = parseInt(defaultHour()) + 1
     return `${String(Math.min(h, 23)).padStart(2, '0')}:00`
   })())
-  const [blockType, setBlockType] = useState(block?.blockType ?? '업무')
+  const [blockType, setBlockType] = useState(block?.blockType ?? defaultValues?.blockType ?? '업무')
   const [importance, setImportance] = useState(block?.importance ?? 'medium')
   const [status, setStatus] = useState(block?.status ?? 'planned')
   const [memo, setMemo] = useState(block?.memo ?? '')
   const [alertEnabled, setAlertEnabled] = useState(block?.alertEnabled ?? false)
   const [alertMinutes, setAlertMinutes] = useState(block?.alertMinutes ?? 10)
-  const [taskId, setTaskId] = useState<number | ''>(block?.taskId ?? '')
+  const [taskId, setTaskId] = useState<number | ''>(block?.taskId ?? defaultValues?.taskId ?? '')
   const [projectId, setProjectId] = useState<number | ''>(block?.projectId ?? '')
-  const [routineId, setRoutineId] = useState<number | ''>(block?.routineId ?? '')
+  const [routineId, setRoutineId] = useState<number | ''>(block?.routineId ?? defaultValues?.routineId ?? '')
   const [error, setError] = useState('')
 
   const color = BLOCK_TYPE_COLORS[blockType] ?? '#6366F1'

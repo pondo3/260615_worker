@@ -97,6 +97,7 @@ export default function TimeManagementClient({
   const [modalOpen, setModalOpen] = useState(false)
   const [editingBlock, setEditingBlock] = useState<TimeBlockWithRefs | null>(null)
   const [defaultTime, setDefaultTime] = useState<{ startTime: string; endTime: string } | null>(null)
+  const [defaultValues, setDefaultValues] = useState<{ title?: string; taskId?: number; routineId?: number; blockType?: string } | null>(null)
 
   const today = new Date().toISOString().split('T')[0]
   const selectedDate = initialDate
@@ -109,9 +110,13 @@ export default function TimeManagementClient({
     startTransition(() => router.push(`/time?${params.toString()}`))
   }, [router, view])
 
-  const openCreate = useCallback((time?: { startTime: string; endTime: string }) => {
+  const openCreate = useCallback((
+    time?: { startTime: string; endTime: string },
+    values?: { title?: string; taskId?: number; routineId?: number; blockType?: string }
+  ) => {
     setEditingBlock(null)
     setDefaultTime(time ?? null)
+    setDefaultValues(values ?? null)
     setModalOpen(true)
   }, [])
 
@@ -125,6 +130,7 @@ export default function TimeManagementClient({
     setModalOpen(false)
     setEditingBlock(null)
     setDefaultTime(null)
+    setDefaultValues(null)
   }, [])
 
   const refresh = useCallback(() => {
@@ -285,7 +291,17 @@ export default function TimeManagementClient({
             const endH = Math.floor(endMin / 60)
             const endM = endMin % 60
             const endTime = `${String(Math.min(endH, 23)).padStart(2, '0')}:${String(endM).padStart(2, '0')}`
-            openCreate({ startTime, endTime })
+            openCreate({ startTime, endTime }, { title: task.title, taskId: task.id })
+          }}
+          onScheduleRoutine={(routine) => {
+            const startTime = routine.timeOfDay ?? (() => {
+              const h = Math.max(new Date().getHours(), 8)
+              return `${String(h).padStart(2, '0')}:00`
+            })()
+            const [sh, sm] = startTime.split(':').map(Number)
+            const endH = Math.min(sh + 1, 23)
+            const endTime = `${String(endH).padStart(2, '0')}:${String(sm).padStart(2, '0')}`
+            openCreate({ startTime, endTime }, { title: routine.title, routineId: routine.id, blockType: '루틴' })
           }}
           onRefresh={refresh}
         />
@@ -297,6 +313,7 @@ export default function TimeManagementClient({
           block={editingBlock}
           defaultDate={selectedDate}
           defaultTime={defaultTime}
+          defaultValues={defaultValues}
           tasks={todayTasks}
           projects={projects}
           routines={todayRoutines}
