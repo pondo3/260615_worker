@@ -250,7 +250,13 @@ function RegisterModal({ onClose, onDone }: { onClose: () => void; onDone: (mat:
           {/* Thumbnail + basic info */}
           <div className="flex gap-4">
             {form.thumbnailUrl && (
-              <img src={form.thumbnailUrl} alt="" className="w-28 h-16 object-cover rounded-xl flex-shrink-0 bg-gray-100 dark:bg-gray-800" />
+              <img
+                src={form.thumbnailUrl}
+                alt=""
+                referrerPolicy="no-referrer"
+                className="w-28 h-16 object-cover rounded-xl flex-shrink-0 bg-gray-100 dark:bg-gray-800"
+                onError={(e) => { e.currentTarget.style.display = 'none' }}
+              />
             )}
             <div className="flex-1 grid grid-cols-2 gap-3">
               <div>
@@ -448,7 +454,13 @@ function DetailPanel({ mat, onClose, onUpdate, onDelete }: {
       <div className="flex-1 overflow-y-auto px-4 py-3 space-y-4">
         {/* Thumbnail */}
         {mat.thumbnailUrl && (
-          <img src={mat.thumbnailUrl} alt={mat.originalTitle ?? ''} className="w-full rounded-xl object-cover aspect-video bg-gray-100 dark:bg-gray-800" />
+          <img
+            src={mat.thumbnailUrl}
+            alt={mat.originalTitle ?? ''}
+            referrerPolicy="no-referrer"
+            className="w-full rounded-xl object-cover aspect-video bg-gray-100 dark:bg-gray-800"
+            onError={(e) => { e.currentTarget.style.display = 'none' }}
+          />
         )}
 
         {/* Platform + status badges */}
@@ -575,10 +587,15 @@ function MatRow({ mat, checked, onCheck, onSelect, selected }: {
       </td>
       <td className="px-2 py-2">
         {mat.thumbnailUrl ? (
-          <img src={mat.thumbnailUrl} alt="" className="w-16 h-9 object-cover rounded-lg bg-gray-100 dark:bg-gray-800" />
-        ) : (
-          <div className="w-16 h-9 rounded-lg bg-gray-100 dark:bg-gray-800 flex items-center justify-center text-gray-300 dark:text-gray-600 text-[9px]">없음</div>
-        )}
+          <img
+            src={mat.thumbnailUrl}
+            alt=""
+            referrerPolicy="no-referrer"
+            className="w-16 h-9 object-cover rounded-lg bg-gray-100 dark:bg-gray-800"
+            onError={(e) => { e.currentTarget.style.display = 'none'; e.currentTarget.nextElementSibling?.classList.remove('hidden') }}
+          />
+        ) : null}
+        <div className={`w-16 h-9 rounded-lg bg-gray-100 dark:bg-gray-800 flex items-center justify-center text-gray-300 dark:text-gray-600 text-[9px] ${mat.thumbnailUrl ? 'hidden' : ''}`}>없음</div>
       </td>
       <td className="px-2 py-2">
         <Badge text={PLATFORM_LABEL[mat.platform] ?? mat.platform} color={PLATFORM_COLOR[mat.platform] ?? PLATFORM_COLOR.website} />
