@@ -3,6 +3,7 @@
 import { prisma } from '@/lib/prisma'
 import { verifySession } from '@/lib/dal'
 import { revalidatePath } from 'next/cache'
+import { BLOCK_TYPE_COLORS } from '@/lib/timeUtils'
 
 export type TimeBlockInput = {
   title: string
@@ -52,8 +53,6 @@ function toDateOnly(dateStr: string): Date {
   d.setHours(0, 0, 0, 0)
   return d
 }
-
-import { calcDurationMin, BLOCK_TYPE_COLORS } from '@/lib/timeUtils'
 
 export async function getTimeBlocks(date: string): Promise<TimeBlockWithRefs[]> {
   const session = await verifySession()
